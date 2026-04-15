@@ -1,0 +1,13 @@
+{
+  "name": "community-issue-app-functions",
+  "private": true,
+  "main": "index.js",
+  "engines": {
+    "node": "20"
+  },
+  "dependencies": {
+    "@google-cloud/speech": "^6.6.1",
+    "firebase-admin": "^13.2.0",
+    "firebase-functions": "^6.0.1"
+  }
+}
