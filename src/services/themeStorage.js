@@ -7,7 +7,7 @@ export async function loadThemePreference() {
   if (saved === "light" || saved === "dark" || saved === "system") {
     return saved;
   }
-  return "system";
+  return "light";
 }
 
 export async function saveThemePreference(mode) {

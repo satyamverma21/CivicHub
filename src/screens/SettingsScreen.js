@@ -4,18 +4,18 @@ import { Picker } from "@react-native-picker/picker";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 
-function ToggleRow({ label, value, onToggle }) {
+function ToggleRow({ label, value, onToggle, colors }) {
   return (
-    <Pressable onPress={onToggle} style={{ borderWidth: 1, borderColor: "#D0D7DE", borderRadius: 8, padding: 10, marginTop: 8 }}>
-      <Text style={{ fontWeight: "700" }}>{label}</Text>
-      <Text>{value ? "On" : "Off"}</Text>
+    <Pressable onPress={onToggle} style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 10, marginTop: 8, backgroundColor: colors.surface }}>
+      <Text style={{ fontWeight: "700", color: colors.text }}>{label}</Text>
+      <Text style={{ color: colors.muted }}>{value ? "On" : "Off"}</Text>
     </Pressable>
   );
 }
 
 export default function SettingsScreen() {
   const { currentUser, logout, deleteMyAccount, updateMyProfile, updateNotificationSettings, showErrorToast } = useAuth();
-  const { preference, setThemePreference } = useTheme();
+  const { preference, setThemePreference, colors } = useTheme();
   const [saving, setSaving] = useState(false);
 
   const privacy = useMemo(() => currentUser?.privacy || { showFullName: true, anonymousPosts: false }, [currentUser?.privacy]);
@@ -70,27 +70,27 @@ export default function SettingsScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 30 }}>
-      <Text style={{ fontSize: 24, fontWeight: "800" }}>Settings</Text>
+    <ScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={{ padding: 16, paddingBottom: 30 }}>
+      <Text style={{ fontSize: 24, fontWeight: "800", color: colors.text }}>Settings</Text>
 
-      <Text style={{ fontSize: 18, fontWeight: "800", marginTop: 16 }}>Privacy</Text>
-      <ToggleRow label="Show Full Name" value={showFullName} onToggle={() => setShowFullName((prev) => !prev)} />
-      <ToggleRow label="Anonymous Posts" value={anonymousPosts} onToggle={() => setAnonymousPosts((prev) => !prev)} />
+      <Text style={{ fontSize: 18, fontWeight: "800", marginTop: 16, color: colors.text }}>Privacy</Text>
+      <ToggleRow label="Show Full Name" value={showFullName} onToggle={() => setShowFullName((prev) => !prev)} colors={colors} />
+      <ToggleRow label="Anonymous Posts" value={anonymousPosts} onToggle={() => setAnonymousPosts((prev) => !prev)} colors={colors} />
       <Pressable onPress={savePrivacy} style={{ marginTop: 8, backgroundColor: "#0969DA", borderRadius: 8, padding: 10, opacity: saving ? 0.6 : 1 }}>
         <Text style={{ textAlign: "center", color: "#FFF", fontWeight: "700" }}>{saving ? "Saving..." : "Save Privacy"}</Text>
       </Pressable>
 
-      <Text style={{ fontSize: 18, fontWeight: "800", marginTop: 16 }}>Notifications</Text>
-      <ToggleRow label="All Notifications" value={Boolean(notificationSettings.all)} onToggle={() => toggleNoti("all")} />
-      <ToggleRow label="New Issue" value={Boolean(notificationSettings.newIssue)} onToggle={() => toggleNoti("newIssue")} />
-      <ToggleRow label="Comments" value={Boolean(notificationSettings.comment)} onToggle={() => toggleNoti("comment")} />
-      <ToggleRow label="Assignment" value={Boolean(notificationSettings.assignment)} onToggle={() => toggleNoti("assignment")} />
-      <ToggleRow label="Status Changes" value={Boolean(notificationSettings.status)} onToggle={() => toggleNoti("status")} />
-      <ToggleRow label="Progress Updates" value={Boolean(notificationSettings.progress)} onToggle={() => toggleNoti("progress")} />
-      <ToggleRow label="Authority Approval" value={Boolean(notificationSettings.approval)} onToggle={() => toggleNoti("approval")} />
+      <Text style={{ fontSize: 18, fontWeight: "800", marginTop: 16, color: colors.text }}>Notifications</Text>
+      <ToggleRow label="All Notifications" value={Boolean(notificationSettings.all)} onToggle={() => toggleNoti("all")} colors={colors} />
+      <ToggleRow label="New Issue" value={Boolean(notificationSettings.newIssue)} onToggle={() => toggleNoti("newIssue")} colors={colors} />
+      <ToggleRow label="Comments" value={Boolean(notificationSettings.comment)} onToggle={() => toggleNoti("comment")} colors={colors} />
+      <ToggleRow label="Assignment" value={Boolean(notificationSettings.assignment)} onToggle={() => toggleNoti("assignment")} colors={colors} />
+      <ToggleRow label="Status Changes" value={Boolean(notificationSettings.status)} onToggle={() => toggleNoti("status")} colors={colors} />
+      <ToggleRow label="Progress Updates" value={Boolean(notificationSettings.progress)} onToggle={() => toggleNoti("progress")} colors={colors} />
+      <ToggleRow label="Authority Approval" value={Boolean(notificationSettings.approval)} onToggle={() => toggleNoti("approval")} colors={colors} />
 
-      <Text style={{ fontSize: 18, fontWeight: "800", marginTop: 16 }}>Appearance</Text>
-      <View style={{ borderWidth: 1, borderColor: "#D0D7DE", borderRadius: 8, marginTop: 8 }}>
+      <Text style={{ fontSize: 18, fontWeight: "800", marginTop: 16, color: colors.text }}>Appearance</Text>
+      <View style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 8, marginTop: 8, backgroundColor: colors.surface }}>
         <Picker selectedValue={preference} onValueChange={(value) => setThemePreference(value)}>
           <Picker.Item label="System" value="system" />
           <Picker.Item label="Light" value="light" />
@@ -98,11 +98,11 @@ export default function SettingsScreen() {
         </Picker>
       </View>
 
-      <Text style={{ fontSize: 18, fontWeight: "800", marginTop: 16 }}>Language</Text>
-      <TextInput value={language} onChangeText={setLanguage} editable={false} style={{ borderWidth: 1, borderColor: "#D0D7DE", borderRadius: 8, padding: 10, marginTop: 8, color: "#59636E" }} />
+      <Text style={{ fontSize: 18, fontWeight: "800", marginTop: 16, color: colors.text }}>Language</Text>
+      <TextInput value={language} onChangeText={setLanguage} editable={false} style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 10, marginTop: 8, color: colors.muted, backgroundColor: colors.surface }} />
 
-      <Pressable onPress={logout} style={{ marginTop: 20, borderWidth: 1, borderColor: "#D0D7DE", borderRadius: 8, padding: 12 }}>
-        <Text style={{ textAlign: "center", fontWeight: "700" }}>Logout</Text>
+      <Pressable onPress={logout} style={{ marginTop: 20, borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 12, backgroundColor: colors.surface }}>
+        <Text style={{ textAlign: "center", fontWeight: "700", color: colors.text }}>Logout</Text>
       </Pressable>
 
       <Pressable

@@ -4,9 +4,11 @@ import AuthInput from "../components/AuthInput";
 import ChannelIDInput from "../components/ChannelIDInput";
 import RoleSelector from "../components/RoleSelector";
 import { useAuth } from "../context/AuthContext";
+import { useTheme } from "../context/ThemeContext";
 
 export default function UserSignupScreen() {
   const { signupUser, showErrorToast } = useAuth();
+  const { colors } = useTheme();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -37,8 +39,8 @@ export default function UserSignupScreen() {
   };
 
   return (
-    <View style={{ flex: 1, padding: 16, justifyContent: "center" }}>
-      <Text style={{ fontSize: 22, marginBottom: 16 }}>User / Authority Signup</Text>
+    <View style={{ flex: 1, padding: 16, justifyContent: "center", backgroundColor: colors.background }}>
+      <Text style={{ fontSize: 22, marginBottom: 16, color: colors.text, fontWeight: "700" }}>User / Authority Signup</Text>
 
       <AuthInput value={email} onChangeText={setEmail} placeholder="Email" />
       <AuthInput
@@ -65,9 +67,18 @@ export default function UserSignupScreen() {
       <Pressable
         onPress={handleSignup}
         disabled={isSubmitting}
-        style={{ borderWidth: 1, padding: 10, borderRadius: 6 }}
+        style={{
+          borderWidth: 1,
+          borderColor: colors.primary,
+          backgroundColor: colors.primary,
+          padding: 10,
+          borderRadius: 6,
+          opacity: isSubmitting ? 0.7 : 1
+        }}
       >
-        <Text>{isSubmitting ? "Creating..." : "Create Account"}</Text>
+        <Text style={{ color: "#fff", textAlign: "center", fontWeight: "700" }}>
+          {isSubmitting ? "Creating..." : "Create Account"}
+        </Text>
       </Pressable>
     </View>
   );

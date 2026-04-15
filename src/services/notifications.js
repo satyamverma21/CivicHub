@@ -1,7 +1,6 @@
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
-import { doc, updateDoc } from "firebase/firestore";
-import { db } from "./firebase";
+import { apiPatch } from "./api";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -32,10 +31,7 @@ export async function registerForPushNotifications(userId) {
   const tokenResult = await Notifications.getExpoPushTokenAsync();
   const token = tokenResult?.data;
   if (token) {
-    await updateDoc(doc(db, "users", userId), {
-      expoPushToken: token,
-      pushEnabled: true
-    });
+    await apiPatch("/api/users/me", { pushToken: token }).catch(() => {});
   }
 
   return token;

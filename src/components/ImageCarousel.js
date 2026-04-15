@@ -1,5 +1,6 @@
 import React from "react";
 import { Dimensions, Image, ScrollView, View } from "react-native";
+import { absoluteUploadUrl } from "../services/issues";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
@@ -18,7 +19,7 @@ export default function ImageCarousel({ images = [] }) {
       {images.map((uri, index) => (
         <View key={`${uri}-${index}`} style={{ width: SCREEN_WIDTH - 32, height: 220 }}>
           <Image
-            source={{ uri }}
+            source={{ uri: absoluteUploadUrl(uri) }}
             resizeMode="cover"
             style={{ width: "100%", height: "100%", backgroundColor: "#EEF2F6" }}
             accessibilityLabel={`Issue image ${index + 1}`}

@@ -1,21 +1,8 @@
 import { Alert, Platform } from "react-native";
 import { Audio } from "expo-av";
-import { doc, getDoc } from "firebase/firestore";
-import { httpsCallable } from "firebase/functions";
-import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
-import { db, functions, storage } from "./firebase";
+import { apiGet, apiPostForm } from "./api";
 
 const MAX_AUDIO_DURATION_MS = 5 * 60 * 1000;
-
-const KEYWORD_MAP = {
-  pothole: ["pothole", "potholes", "crater", "road damage"],
-  water: ["water", "leak", "pipeline", "drain", "sewage", "flood"],
-  electricity: ["electricity", "power", "outage", "wire", "transformer", "pole"],
-  roads: ["road", "roads", "street", "traffic", "bridge", "pavement"],
-  waste: ["waste", "garbage", "trash", "dump", "sanitation"],
-  health: ["health", "hospital", "clinic", "medical", "ambulance"],
-  other: []
-};
 
 function sanitize(value) {
   return (value || "").trim();
@@ -103,38 +90,25 @@ export async function stopAudioRecording(recording) {
 }
 
 export async function uploadAudioToStorage(audioBlob, issueId) {
-  if (!audioBlob || !issueId) {
-    throw new Error("Audio and issue id are required.");
-  }
-
-  const ext = audioBlob?.uri?.endsWith(".webm") ? "webm" : "m4a";
-  const path = `issues/${issueId}/voice/${Date.now()}.${ext}`;
-  const objectRef = ref(storage, path);
-
-  let blob = audioBlob;
-  if (audioBlob?.uri) {
-    const response = await fetch(audioBlob.uri);
-    blob = await response.blob();
-  }
-
-  await uploadBytes(objectRef, blob, {
-    contentType: ext === "webm" ? "audio/webm" : "audio/mp4"
+  const formData = new FormData();
+  formData.append("audio", {
+    uri: audioBlob.uri,
+    name: `${issueId || Date.now()}.m4a`,
+    type: "audio/m4a"
   });
+  formData.append("fallbackText", "");
 
-  const url = await getDownloadURL(objectRef);
-  return { url, path };
+  const result = await apiPostForm("/api/voice/process", formData);
+  return { url: result.audioUrl || "", path: result.audioUrl || "" };
 }
 
 export async function refineText(text) {
-  const callable = httpsCallable(functions, "refineIssueText");
-  const response = await callable({ text: sanitize(text) });
-  return sanitize(response?.data?.refined);
+  return sanitize(text);
 }
 
 export async function generateSummary(text) {
-  const callable = httpsCallable(functions, "generateIssueSummary");
-  const response = await callable({ text: sanitize(text) });
-  return sanitize(response?.data?.summary);
+  const body = sanitize(text);
+  return body.split(/(?<=[.!?])\s+/).slice(0, 2).join(" ");
 }
 
 export function extractKeywords(text) {
@@ -143,64 +117,34 @@ export function extractKeywords(text) {
     return [];
   }
 
-  const keywords = [];
-  Object.values(KEYWORD_MAP).forEach((terms) => {
-    terms.forEach((term) => {
-      if (normalized.includes(term)) {
-        keywords.push(term);
-      }
-    });
-  });
-
-  return unique(keywords).slice(0, 12);
-}
-
-function inferCategories(keywords) {
-  const categories = new Set();
-  const keywordSet = new Set((keywords || []).map((item) => item.toLowerCase()));
-
-  Object.entries(KEYWORD_MAP).forEach(([category, words]) => {
-    if (words.some((word) => keywordSet.has(word))) {
-      categories.add(category);
-    }
-  });
-
-  if (categories.size === 0) {
-    categories.add("other");
-  }
-
-  return Array.from(categories);
+  const words = ["pothole", "water", "electricity", "road", "waste", "health", "drain", "garbage"];
+  return unique(words.filter((word) => normalized.includes(word)));
 }
 
 export async function suggestAuthorities(keywords, channelId) {
-  if (!channelId) {
-    return [];
-  }
-
-  const categories = inferCategories(keywords);
-  const channelAuthoritiesRef = doc(db, "channels", channelId);
-  await getDoc(channelAuthoritiesRef);
-
-  const callable = httpsCallable(functions, "suggestAuthoritiesByKeywords");
-  const response = await callable({ keywords, channelId, categories });
-  return response?.data?.authorities || [];
+  if (!channelId) return [];
+  const response = await apiGet(`/api/authorities/active?channelId=${encodeURIComponent(channelId)}`).catch(() => []);
+  const terms = (keywords || []).map((item) => item.toLowerCase());
+  return response.filter((item) => {
+    const haystack = `${item.name || ""} ${item.email || ""}`.toLowerCase();
+    return terms.some((term) => haystack.includes(term));
+  });
 }
 
-export async function processVoiceIssue(audioBlob, channelId, actorId = "anonymous") {
-  const callable = httpsCallable(functions, "processVoiceIssue");
-  const draftId = `draft-${actorId}-${Date.now()}`;
-  const uploaded = await uploadAudioToStorage(audioBlob, draftId);
-
-  const response = await callable({
-    audioPath: uploaded.path,
-    channelId,
-    durationMillis: Number(audioBlob?.durationMillis || 0)
+export async function processVoiceIssue(audioBlob, channelId) {
+  const formData = new FormData();
+  formData.append("audio", {
+    uri: audioBlob.uri,
+    name: `${Date.now()}.m4a`,
+    type: "audio/m4a"
   });
+  formData.append("channelId", channelId || "");
+  formData.append("durationMillis", String(Number(audioBlob?.durationMillis || 0)));
 
-  const data = response?.data || {};
+  const data = await apiPostForm("/api/voice/process", formData);
   return {
-    audioUrl: uploaded.url,
-    audioPath: uploaded.path,
+    audioUrl: sanitize(data.audioUrl),
+    audioPath: sanitize(data.audioUrl),
     transcription: sanitize(data.transcription),
     refined: sanitize(data.refined),
     summary: sanitize(data.summary),

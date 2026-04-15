@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { DarkTheme, DefaultTheme, NavigationContainer, createNavigationContainerRef } from "@react-navigation/native";
+import { DefaultTheme, NavigationContainer, createNavigationContainerRef } from "@react-navigation/native";
 import { AuthProvider } from "./src/context/AuthContext";
 import { ThemeProvider, useTheme } from "./src/context/ThemeContext";
 import RootNavigator from "./src/navigation/RootNavigator";
@@ -8,7 +8,21 @@ import { subscribeNotificationNavigation } from "./src/services/notifications";
 const navigationRef = createNavigationContainerRef();
 
 function AppInner() {
-  const { isDark } = useTheme();
+  const { colors, isDark } = useTheme();
+
+  const navTheme = {
+    ...DefaultTheme,
+    dark: isDark,
+    colors: {
+      ...DefaultTheme.colors,
+      primary: colors.primary,
+      background: colors.background,
+      card: colors.surface,
+      text: colors.text,
+      border: colors.border,
+      notification: colors.danger
+    }
+  };
 
   useEffect(() => {
     const unsubscribe = subscribeNotificationNavigation({
@@ -23,7 +37,7 @@ function AppInner() {
   }, []);
 
   return (
-    <NavigationContainer ref={navigationRef} theme={isDark ? DarkTheme : DefaultTheme}>
+    <NavigationContainer ref={navigationRef} theme={navTheme}>
       <RootNavigator />
     </NavigationContainer>
   );

@@ -1,9 +1,9 @@
 import React, { useCallback, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
-import { collection, getDocs, query, where } from "firebase/firestore";
 import { useAuth } from "../context/AuthContext";
-import { db } from "../services/firebase";
+import { apiGet } from "../services/api";
+import { useTheme } from "../context/ThemeContext";
 
 export default function HomeScreen({ navigation }) {
   const {
@@ -15,6 +15,7 @@ export default function HomeScreen({ navigation }) {
     superAdminUpdateUserRole,
     showErrorToast
   } = useAuth();
+  const { colors } = useTheme();
 
   const [adminUsers, setAdminUsers] = useState([]);
   const [adminChannels, setAdminChannels] = useState([]);
@@ -42,10 +43,8 @@ export default function HomeScreen({ navigation }) {
       setUnreadNotifications(0);
       return;
     }
-    const snap = await getDocs(
-      query(collection(db, "notifications"), where("userId", "==", currentUser.uid), where("read", "==", false))
-    );
-    setUnreadNotifications(snap.size);
+    const data = await apiGet("/api/notifications");
+    setUnreadNotifications((data.items || []).filter((item) => !item.read).length);
   }, [currentUser?.uid]);
 
   useFocusEffect(
@@ -65,20 +64,20 @@ export default function HomeScreen({ navigation }) {
   };
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 30 }}>
-      <Text style={{ fontSize: 24, marginBottom: 8 }}>Home</Text>
-      <Text>Email: {currentUser?.email || "-"}</Text>
-      <Text>Role: {userRole || "-"}</Text>
-      <Text style={{ marginTop: 4 }}>Channel ID: {channelId || "Not assigned"}</Text>
-      <Text style={{ marginTop: 4 }}>Notifications: {unreadNotifications}</Text>
+    <ScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={{ padding: 16, paddingBottom: 30 }}>
+      <Text style={{ fontSize: 24, marginBottom: 8, color: colors.text, fontWeight: "700" }}>Home</Text>
+      <Text style={{ color: colors.text }}>Email: {currentUser?.email || "-"}</Text>
+      <Text style={{ color: colors.text }}>Role: {userRole || "-"}</Text>
+      <Text style={{ marginTop: 4, color: colors.text }}>Channel ID: {channelId || "Not assigned"}</Text>
+      <Text style={{ marginTop: 4, color: colors.text }}>Notifications: {unreadNotifications}</Text>
 
       {channelId ? (
         <View style={{ marginTop: 16, gap: 10 }}>
-          <Pressable onPress={() => navigation.navigate("Feed")} style={{ borderWidth: 1, padding: 10, borderRadius: 6 }}>
-            <Text>Open Feed</Text>
+          <Pressable onPress={() => navigation.navigate("Feed")} style={{ borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, padding: 10, borderRadius: 6 }}>
+            <Text style={{ color: colors.text }}>Open Feed</Text>
           </Pressable>
-          <Pressable onPress={() => navigation.navigate("CreateIssue")} style={{ borderWidth: 1, padding: 10, borderRadius: 6 }}>
-            <Text>Quick Create Issue</Text>
+          <Pressable onPress={() => navigation.navigate("CreateIssue")} style={{ borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, padding: 10, borderRadius: 6 }}>
+            <Text style={{ color: colors.text }}>Quick Create Issue</Text>
           </Pressable>
         </View>
       ) : null}
@@ -86,50 +85,50 @@ export default function HomeScreen({ navigation }) {
       {["Authority", "Head", "SuperAdmin"].includes(userRole) ? (
         <Pressable
           onPress={() => navigation.navigate("AuthorityDashboard")}
-          style={{ borderWidth: 1, padding: 10, borderRadius: 6, marginTop: 10 }}
+          style={{ borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, padding: 10, borderRadius: 6, marginTop: 10 }}
         >
-          <Text>Open Authority Dashboard</Text>
+          <Text style={{ color: colors.text }}>Open Authority Dashboard</Text>
         </Pressable>
       ) : null}
 
       {userRole === "Head" ? (
         <Pressable
           onPress={() => navigation.navigate("HeadDashboard")}
-          style={{ borderWidth: 1, padding: 10, borderRadius: 6, marginTop: 10 }}
+          style={{ borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, padding: 10, borderRadius: 6, marginTop: 10 }}
         >
-          <Text>Open Head Dashboard</Text>
+          <Text style={{ color: colors.text }}>Open Head Dashboard</Text>
         </Pressable>
       ) : null}
 
       {userRole === "SuperAdmin" ? (
         <View style={{ marginTop: 20 }}>
-          <Text style={{ fontSize: 18, marginBottom: 10 }}>SuperAdmin Panel</Text>
+          <Text style={{ fontSize: 18, marginBottom: 10, color: colors.text, fontWeight: "700" }}>SuperAdmin Panel</Text>
           <Pressable
             onPress={() => navigation.navigate("SuperAdminDashboard")}
-            style={{ borderWidth: 1, padding: 10, borderRadius: 6, marginBottom: 10 }}
+            style={{ borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, padding: 10, borderRadius: 6, marginBottom: 10 }}
           >
-            <Text>Open SuperAdmin Dashboard</Text>
+            <Text style={{ color: colors.text }}>Open SuperAdmin Dashboard</Text>
           </Pressable>
-          {loadingAdminData ? <Text>Loading channels and users...</Text> : null}
-          {!loadingAdminData ? <Text>Channels: {adminChannels.length}</Text> : null}
-          {!loadingAdminData ? <Text>Users: {adminUsers.length}</Text> : null}
+          {loadingAdminData ? <Text style={{ color: colors.text }}>Loading channels and users...</Text> : null}
+          {!loadingAdminData ? <Text style={{ color: colors.text }}>Channels: {adminChannels.length}</Text> : null}
+          {!loadingAdminData ? <Text style={{ color: colors.text }}>Users: {adminUsers.length}</Text> : null}
 
           {!loadingAdminData &&
             adminUsers.map((item) => (
               <View
                 key={item.id}
-                style={{ borderWidth: 1, borderRadius: 8, padding: 10, marginTop: 10 }}
+                style={{ borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, borderRadius: 8, padding: 10, marginTop: 10 }}
               >
-                <Text>{item.email}</Text>
-                <Text>Current Role: {item.role}</Text>
+                <Text style={{ color: colors.text }}>{item.email}</Text>
+                <Text style={{ color: colors.text }}>Current Role: {item.role}</Text>
                 <View style={{ flexDirection: "row", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
                   {["Head", "User", "Authority"].map((role) => (
                     <Pressable
                       key={role}
                       onPress={() => onRoleChange(item.id, role)}
-                      style={{ borderWidth: 1, padding: 8, borderRadius: 6 }}
+                      style={{ borderWidth: 1, borderColor: colors.border, padding: 8, borderRadius: 6 }}
                     >
-                      <Text>Set {role}</Text>
+                      <Text style={{ color: colors.text }}>Set {role}</Text>
                     </Pressable>
                   ))}
                 </View>
@@ -138,14 +137,14 @@ export default function HomeScreen({ navigation }) {
         </View>
       ) : null}
 
-      <Pressable onPress={() => navigation.navigate("Profile")} style={{ borderWidth: 1, padding: 10, borderRadius: 6, marginTop: 16 }}>
-        <Text>Profile</Text>
+      <Pressable onPress={() => navigation.navigate("Profile")} style={{ borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, padding: 10, borderRadius: 6, marginTop: 16 }}>
+        <Text style={{ color: colors.text }}>Profile</Text>
       </Pressable>
-      <Pressable onPress={() => navigation.navigate("Settings")} style={{ borderWidth: 1, padding: 10, borderRadius: 6, marginTop: 10 }}>
-        <Text>Settings</Text>
+      <Pressable onPress={() => navigation.navigate("Settings")} style={{ borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, padding: 10, borderRadius: 6, marginTop: 10 }}>
+        <Text style={{ color: colors.text }}>Settings</Text>
       </Pressable>
-      <Pressable onPress={logout} style={{ borderWidth: 1, padding: 10, borderRadius: 6, marginTop: 10 }}>
-        <Text>Logout</Text>
+      <Pressable onPress={logout} style={{ borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, padding: 10, borderRadius: 6, marginTop: 10 }}>
+        <Text style={{ color: colors.text }}>Logout</Text>
       </Pressable>
     </ScrollView>
   );

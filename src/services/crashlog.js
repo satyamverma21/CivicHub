@@ -1,13 +1,11 @@
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
-import { db } from "./firebase";
+import { apiPost } from "./api";
 
 export async function logError(error, context = "app") {
   try {
-    await addDoc(collection(db, "logs"), {
+    await apiPost("/api/logs/error", {
       context,
       message: error?.message || "Unknown error",
-      stack: error?.stack || "",
-      createdAt: serverTimestamp()
+      stack: error?.stack || ""
     });
   } catch (logErrorInternal) {
     console.log("Failed to log error", logErrorInternal?.message);

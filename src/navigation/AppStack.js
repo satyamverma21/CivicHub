@@ -9,12 +9,22 @@ import HeadDashboardScreen from "../screens/HeadDashboardScreen";
 import SuperAdminDashboardScreen from "../screens/SuperAdminDashboardScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 import SettingsScreen from "../screens/SettingsScreen";
+import { useTheme } from "../context/ThemeContext";
 
 const Stack = createNativeStackNavigator();
 
 export default function AppStack() {
+  const { colors } = useTheme();
+
   return (
-    <Stack.Navigator>
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: colors.surface },
+        headerTintColor: colors.text,
+        headerTitleStyle: { color: colors.text },
+        contentStyle: { backgroundColor: colors.background }
+      }}
+    >
       <Stack.Screen name="Home" component={HomeScreen} />
       <Stack.Screen name="Feed" component={FeedScreen} options={{ title: "Issues Feed" }} />
       <Stack.Screen name="CreateIssue" component={CreateIssueScreen} options={{ title: "Report Issue" }} />
