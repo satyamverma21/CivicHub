@@ -17,14 +17,20 @@ export default function AuthStack() {
       screenOptions={{
         headerStyle: { backgroundColor: colors.surface },
         headerTintColor: colors.text,
-        headerTitleStyle: { color: colors.text },
+        headerTitleStyle: {
+          color: colors.text,
+          fontWeight: "700",
+          fontSize: 17
+        },
+        headerShadowVisible: false,
+        headerBackTitleVisible: false,
         contentStyle: { backgroundColor: colors.background }
       }}
     >
       <Stack.Screen name="Splash" component={SplashScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="Login" component={LoginScreen} options={{ title: "Login" }} />
-      <Stack.Screen name="HeadSignup" component={HeadSignupScreen} options={{ title: "Head Signup" }} />
-      <Stack.Screen name="UserSignup" component={UserSignupScreen} options={{ title: "User Signup" }} />
+      <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="HeadSignup" component={HeadSignupScreen} options={{ title: "Create Organization" }} />
+      <Stack.Screen name="UserSignup" component={UserSignupScreen} options={{ title: "Join Community" }} />
     </Stack.Navigator>
   );
 }

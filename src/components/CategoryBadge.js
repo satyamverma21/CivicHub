@@ -1,23 +1,25 @@
 import React from "react";
 import { Text, View } from "react-native";
+import { useTheme } from "../context/ThemeContext";
 
 export default function CategoryBadge({ category }) {
   if (!category) {
     return null;
   }
 
+  const { colors } = useTheme();
+
   return (
     <View
       style={{
         alignSelf: "flex-start",
-        borderWidth: 1,
-        borderColor: "#D0D7DE",
         borderRadius: 999,
-        paddingHorizontal: 10,
-        paddingVertical: 4
+        paddingHorizontal: 12,
+        paddingVertical: 5,
+        backgroundColor: colors.primaryLight
       }}
     >
-      <Text style={{ fontSize: 12, fontWeight: "600", color: "#24292F" }}>{category}</Text>
+      <Text style={{ fontSize: 12, fontWeight: "600", color: colors.primary }}>{category}</Text>
     </View>
   );
 }

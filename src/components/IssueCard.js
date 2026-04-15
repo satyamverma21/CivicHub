@@ -4,12 +4,7 @@ import CategoryBadge from "./CategoryBadge";
 import ImageCarousel from "./ImageCarousel";
 import StatusBadge from "./StatusBadge";
 import { formatTimestamp } from "../services/issues";
-
-const ROLE_COLORS = {
-  User: { bg: "#E7F3FF", text: "#0058B3" },
-  Authority: { bg: "#FFF4E5", text: "#8A4B00" },
-  Head: { bg: "#E8F5E9", text: "#1B5E20" }
-};
+import { useTheme } from "../context/ThemeContext";
 
 function initials(name) {
   const parts = (name || "U").split(" ").filter(Boolean);
@@ -23,21 +18,30 @@ function descriptionPreview(description) {
   if (!description) {
     return "";
   }
-  if (description.length <= 180) {
+  if (description.length <= 140) {
     return description;
   }
-  return `${description.slice(0, 177)}...`;
+  return `${description.slice(0, 137)}...`;
 }
 
 export default function IssueCard({ issue, onPress, onLikePress, currentUserId, onSharePress }) {
+  const { colors, shadows } = useTheme();
   const role = issue.authorRole || "User";
-  const roleColor = ROLE_COLORS[role] || ROLE_COLORS.User;
+
+  const roleColorMap = {
+    User: colors.roleUser,
+    Authority: colors.roleAuthority,
+    Head: colors.roleHead,
+    SuperAdmin: colors.roleSuperAdmin
+  };
+  const roleColor = roleColorMap[role] || colors.roleUser;
+
   const liked = Array.isArray(issue.likes) && issue.likes.includes(currentUserId);
   const likeScale = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     Animated.sequence([
-      Animated.timing(likeScale, { toValue: liked ? 1.25 : 1, duration: 120, useNativeDriver: true }),
+      Animated.timing(likeScale, { toValue: liked ? 1.3 : 1, duration: 120, useNativeDriver: true }),
       Animated.spring(likeScale, { toValue: 1, friction: 4, tension: 120, useNativeDriver: true })
     ]).start();
   }, [liked, likeScale]);
@@ -46,87 +50,130 @@ export default function IssueCard({ issue, onPress, onLikePress, currentUserId, 
     <Pressable
       onPress={onPress}
       style={{
-        backgroundColor: "#FFFFFF",
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: "#D8DEE4",
-        padding: 12,
-        marginBottom: 12
+        backgroundColor: colors.surface,
+        borderRadius: 16,
+        padding: 16,
+        marginBottom: 14,
+        borderWidth: colors.mode === "dark" ? 1 : 0,
+        borderColor: colors.cardBorder,
+        ...(shadows?.md || {})
       }}
     >
+      {/* Author row */}
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1 }}>
           {issue.authorAvatar ? (
             <Image
               source={{ uri: issue.authorAvatar }}
-              style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: "#EAEFF5" }}
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: colors.primaryLight,
+                borderWidth: 2,
+                borderColor: colors.primaryLight
+              }}
             />
           ) : (
             <View
               style={{
-                width: 36,
-                height: 36,
-                borderRadius: 18,
-                backgroundColor: "#DEE6EE",
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: colors.primaryLight,
                 alignItems: "center",
                 justifyContent: "center"
               }}
             >
-              <Text style={{ fontWeight: "700" }}>{initials(issue.authorName)}</Text>
+              <Text style={{ fontWeight: "700", color: colors.primary, fontSize: 14 }}>
+                {initials(issue.authorName)}
+              </Text>
             </View>
           )}
           <View style={{ flex: 1 }}>
-            <Text style={{ fontWeight: "700", color: "#1F2328" }}>{issue.authorName}</Text>
-            <Text style={{ color: "#59636E", fontSize: 12 }}>{formatTimestamp(issue.createdAt)}</Text>
+            <Text style={{ fontWeight: "700", color: colors.text, fontSize: 14 }}>{issue.authorName}</Text>
+            <Text style={{ color: colors.textTertiary, fontSize: 12, marginTop: 1 }}>
+              {formatTimestamp(issue.createdAt)}
+            </Text>
           </View>
         </View>
-        <View
-          style={{
-            paddingHorizontal: 8,
-            paddingVertical: 4,
-            borderRadius: 999,
-            backgroundColor: roleColor.bg
-          }}
-        >
+        <View style={{ borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, backgroundColor: roleColor.bg }}>
           <Text style={{ color: roleColor.text, fontWeight: "600", fontSize: 11 }}>{role}</Text>
         </View>
       </View>
 
-      <Text style={{ marginTop: 10, fontSize: 16, fontWeight: "700", color: "#1F2328" }}>{issue.title}</Text>
-      <Text style={{ marginTop: 4, color: "#2F353D" }}>{descriptionPreview(issue.description)}</Text>
+      {/* Title + Description */}
+      <Text style={{ marginTop: 12, fontSize: 17, fontWeight: "700", color: colors.text, lineHeight: 23 }}>
+        {issue.title}
+      </Text>
+      {issue.description ? (
+        <Text style={{ marginTop: 6, color: colors.textSecondary, fontSize: 14, lineHeight: 20 }}>
+          {descriptionPreview(issue.description)}
+        </Text>
+      ) : null}
 
-      <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
+      {/* Badges */}
+      <View style={{ flexDirection: "row", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
         <StatusBadge status={issue.status} />
         <CategoryBadge category={issue.category} />
         {issue.isVoiceReport ? (
-          <View style={{ backgroundColor: "#EDE9FE", borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4 }}>
-            <Text style={{ color: "#4C1D95", fontWeight: "700", fontSize: 11 }}>Voice Report</Text>
+          <View style={{ backgroundColor: colors.infoLight, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 }}>
+            <Text style={{ color: colors.info, fontWeight: "700", fontSize: 11 }}>Voice</Text>
           </View>
         ) : null}
         {issue.isAIRefined ? (
-          <View style={{ backgroundColor: "#E6FFEC", borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4 }}>
-            <Text style={{ color: "#1A7F37", fontWeight: "700", fontSize: 11 }}>AI-refined</Text>
+          <View style={{ backgroundColor: colors.accentLight, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 }}>
+            <Text style={{ color: colors.accent, fontWeight: "700", fontSize: 11 }}>AI-refined</Text>
           </View>
         ) : null}
       </View>
 
+      {/* AI Summary */}
       {issue.aiSummary ? (
-        <Text style={{ marginTop: 8, color: "#1F2328", fontWeight: "600" }}>{issue.aiSummary}</Text>
+        <View style={{
+          marginTop: 10,
+          backgroundColor: colors.surfaceAlt,
+          borderRadius: 10,
+          padding: 10,
+          borderLeftWidth: 3,
+          borderLeftColor: colors.primary
+        }}>
+          <Text style={{ color: colors.text, fontWeight: "600", fontSize: 13, lineHeight: 18 }}>
+            {issue.aiSummary}
+          </Text>
+        </View>
       ) : null}
 
       <ImageCarousel images={issue.images || []} />
 
-      <View style={{ flexDirection: "row", marginTop: 12, justifyContent: "space-between" }}>
-        <Pressable onPress={onLikePress} accessibilityLabel="Like issue" hitSlop={8}>
+      {/* Actions */}
+      <View style={{
+        flexDirection: "row",
+        marginTop: 14,
+        paddingTop: 12,
+        borderTopWidth: 1,
+        borderTopColor: colors.borderLight,
+        justifyContent: "space-between",
+        alignItems: "center"
+      }}>
+        <Pressable onPress={onLikePress} accessibilityLabel="Like issue" hitSlop={8} style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
           <Animated.View style={{ transform: [{ scale: likeScale }] }}>
-            <Text style={{ color: liked ? "#D1242F" : "#2F353D", fontWeight: "600" }}>
-              {liked ? "?" : "?"} {issue.likesCount || 0}
-            </Text>
+            <Text style={{ fontSize: 16 }}>{liked ? "❤️" : "🤍"}</Text>
           </Animated.View>
+          <Text style={{ color: liked ? colors.danger : colors.textSecondary, fontWeight: "600", fontSize: 14 }}>
+            {issue.likesCount || 0}
+          </Text>
         </Pressable>
-        <Text style={{ color: "#2F353D", fontWeight: "600" }}>Comments {issue.commentsCount || 0}</Text>
-        <Pressable onPress={onSharePress}>
-          <Text style={{ color: "#0969DA", fontWeight: "600" }}>Share</Text>
+
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+          <Text style={{ fontSize: 14 }}>💬</Text>
+          <Text style={{ color: colors.textSecondary, fontWeight: "600", fontSize: 14 }}>
+            {issue.commentsCount || 0}
+          </Text>
+        </View>
+
+        <Pressable onPress={onSharePress} style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+          <Text style={{ color: colors.primary, fontWeight: "600", fontSize: 14 }}>Share</Text>
         </Pressable>
       </View>
     </Pressable>

@@ -1,40 +1,64 @@
 import React from "react";
 import { Text, TextInput, View } from "react-native";
+import { useTheme } from "../context/ThemeContext";
 
 export default function RefinementPreview({ transcription, refined, summary, onSummaryChange }) {
+  const { colors } = useTheme();
+
   if (!transcription && !refined) {
     return null;
   }
 
   return (
-    <View style={{ marginTop: 12, borderWidth: 1, borderColor: "#D0D7DE", borderRadius: 10, padding: 12, backgroundColor: "#FFFFFF" }}>
-      <Text style={{ fontWeight: "800", marginBottom: 8 }}>AI Refinement Preview</Text>
+    <View style={{
+      marginTop: 14,
+      backgroundColor: colors.surfaceAlt,
+      borderRadius: 16,
+      padding: 16,
+      borderLeftWidth: 3,
+      borderLeftColor: colors.primary
+    }}>
+      <Text style={{ fontWeight: "800", fontSize: 15, color: colors.text, marginBottom: 12 }}>
+        ✦ AI Refinement Preview
+      </Text>
 
-      <Text style={{ fontWeight: "700" }}>Original Transcription</Text>
-      <Text style={{ marginTop: 4, color: "#59636E" }}>{transcription || "-"}</Text>
+      <Text style={{ fontWeight: "700", fontSize: 13, color: colors.textSecondary, marginBottom: 4 }}>
+        Original Transcription
+      </Text>
+      <Text style={{ color: colors.textSecondary, fontSize: 14, lineHeight: 20 }}>{transcription || "-"}</Text>
 
-      <Text style={{ fontWeight: "700", marginTop: 10 }}>Refined Text</Text>
-      <Text style={{ marginTop: 4, color: "#1F2328" }}>{refined || "-"}</Text>
+      <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 12 }} />
 
-      <Text style={{ fontWeight: "700", marginTop: 10 }}>Summary (editable)</Text>
+      <Text style={{ fontWeight: "700", fontSize: 13, color: colors.textSecondary, marginBottom: 4 }}>
+        Refined Text
+      </Text>
+      <Text style={{ color: colors.text, fontSize: 14, lineHeight: 20 }}>{refined || "-"}</Text>
+
+      <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 12 }} />
+
+      <Text style={{ fontWeight: "700", fontSize: 13, color: colors.textSecondary, marginBottom: 6 }}>
+        Summary (editable)
+      </Text>
       <TextInput
         value={summary}
         onChangeText={onSummaryChange}
         placeholder="Auto summary will appear here"
+        placeholderTextColor={colors.textTertiary}
         multiline
         maxLength={240}
         style={{
-          marginTop: 6,
-          borderWidth: 1,
-          borderColor: "#D0D7DE",
-          borderRadius: 8,
-          padding: 10,
+          borderWidth: 1.5,
+          borderColor: colors.border,
+          borderRadius: 12,
+          padding: 12,
           minHeight: 70,
           textAlignVertical: "top",
-          backgroundColor: "#FFFFFF"
+          backgroundColor: colors.surface,
+          color: colors.text,
+          fontSize: 14
         }}
       />
-      <Text style={{ marginTop: 4, color: "#59636E", fontSize: 12 }}>
+      <Text style={{ marginTop: 6, color: colors.textTertiary, fontSize: 12 }}>
         Summary should be 1-2 sentences.
       </Text>
     </View>

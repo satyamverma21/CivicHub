@@ -1,8 +1,9 @@
-﻿import React, { useCallback, useState } from "react";
+import React, { useCallback, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { formatTimestamp } from "../services/issues";
 import { useAuth } from "../context/AuthContext";
+import { useTheme } from "../context/ThemeContext";
 
 export default function HeadDashboardScreen() {
   const {
@@ -14,6 +15,7 @@ export default function HeadDashboardScreen() {
     removeAuthority,
     showErrorToast
   } = useAuth();
+  const { colors, shadows } = useTheme();
 
   const [loading, setLoading] = useState(true);
   const [pendingRequests, setPendingRequests] = useState([]);
@@ -44,10 +46,7 @@ export default function HeadDashboardScreen() {
   );
 
   const onApprove = async (requestId) => {
-    if (processingId) {
-      return;
-    }
-
+    if (processingId) return;
     setProcessingId(requestId);
     try {
       await approveAuthorityRequest(requestId, currentUser?.uid);
@@ -60,10 +59,7 @@ export default function HeadDashboardScreen() {
   };
 
   const onReject = async (requestId) => {
-    if (processingId) {
-      return;
-    }
-
+    if (processingId) return;
     setProcessingId(requestId);
     try {
       await rejectAuthorityRequest(requestId);
@@ -76,10 +72,7 @@ export default function HeadDashboardScreen() {
   };
 
   const onRemove = async (authorityId) => {
-    if (processingId) {
-      return;
-    }
-
+    if (processingId) return;
     setProcessingId(authorityId);
     try {
       await removeAuthority(authorityId);
@@ -93,66 +86,149 @@ export default function HeadDashboardScreen() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-        <ActivityIndicator />
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.background }}>
+        <ActivityIndicator color={colors.primary} />
       </View>
     );
   }
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 30 }}>
-      <Text style={{ fontSize: 22, fontWeight: "800" }}>Head Dashboard</Text>
+    <ScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
+      <Text style={{ fontSize: 28, fontWeight: "800", color: colors.text, letterSpacing: -0.5, marginBottom: 20 }}>
+        Head Dashboard
+      </Text>
 
-      <View style={{ marginTop: 16 }}>
-        <Text style={{ fontSize: 18, fontWeight: "800", marginBottom: 10 }}>Pending Authority Requests</Text>
-        {pendingRequests.length === 0 ? <Text style={{ color: "#59636E" }}>No pending requests.</Text> : null}
+      {/* Pending Requests */}
+      <View style={{ marginBottom: 24 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12 }}>
+          <Text style={{ fontSize: 18, fontWeight: "700", color: colors.text }}>Pending Requests</Text>
+          {pendingRequests.length > 0 ? (
+            <View style={{ backgroundColor: colors.warningLight, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 }}>
+              <Text style={{ color: colors.warning, fontWeight: "700", fontSize: 12 }}>{pendingRequests.length}</Text>
+            </View>
+          ) : null}
+        </View>
+
+        {pendingRequests.length === 0 ? (
+          <View style={{
+            backgroundColor: colors.surfaceAlt,
+            borderRadius: 14,
+            padding: 20,
+            alignItems: "center"
+          }}>
+            <Text style={{ color: colors.textTertiary, fontSize: 15 }}>No pending requests</Text>
+          </View>
+        ) : null}
 
         {pendingRequests.map((item) => (
           <View
             key={item.requestId}
-            style={{ borderWidth: 1, borderColor: "#D0D7DE", borderRadius: 10, padding: 10, marginBottom: 10 }}
+            style={{
+              backgroundColor: colors.surface,
+              borderRadius: 16,
+              padding: 16,
+              marginBottom: 10,
+              borderWidth: colors.mode === "dark" ? 1 : 0,
+              borderColor: colors.cardBorder,
+              ...(shadows?.md || {})
+            }}
           >
-            <Text style={{ fontWeight: "700" }}>{item.name}</Text>
-            <Text style={{ color: "#2F353D" }}>{item.email}</Text>
-            <Text style={{ color: "#59636E", marginTop: 4 }}>Requested: {formatTimestamp(item.createdAt)}</Text>
+            <Text style={{ fontWeight: "700", color: colors.text, fontSize: 16 }}>{item.name}</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 14, marginTop: 2 }}>{item.email}</Text>
+            <Text style={{ color: colors.textTertiary, marginTop: 6, fontSize: 12 }}>
+              Requested: {formatTimestamp(item.createdAt)}
+            </Text>
 
-            <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
+            <View style={{ flexDirection: "row", gap: 10, marginTop: 14 }}>
               <Pressable
                 onPress={() => onApprove(item.requestId)}
-                style={{ backgroundColor: "#1A7F37", borderRadius: 8, padding: 10, flex: 1, opacity: processingId ? 0.6 : 1 }}
+                style={{
+                  backgroundColor: colors.accent,
+                  borderRadius: 10,
+                  paddingVertical: 11,
+                  flex: 1,
+                  alignItems: "center",
+                  opacity: processingId ? 0.6 : 1
+                }}
               >
-                <Text style={{ color: "#FFFFFF", textAlign: "center", fontWeight: "700" }}>Approve</Text>
+                <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 14 }}>Approve</Text>
               </Pressable>
               <Pressable
                 onPress={() => onReject(item.requestId)}
-                style={{ borderWidth: 1, borderColor: "#CF222E", borderRadius: 8, padding: 10, flex: 1, opacity: processingId ? 0.6 : 1 }}
+                style={{
+                  borderWidth: 1.5,
+                  borderColor: colors.danger,
+                  borderRadius: 10,
+                  paddingVertical: 10,
+                  flex: 1,
+                  alignItems: "center",
+                  opacity: processingId ? 0.6 : 1
+                }}
               >
-                <Text style={{ color: "#CF222E", textAlign: "center", fontWeight: "700" }}>Reject</Text>
+                <Text style={{ color: colors.danger, fontWeight: "700", fontSize: 14 }}>Reject</Text>
               </Pressable>
             </View>
           </View>
         ))}
       </View>
 
-      <View style={{ marginTop: 20 }}>
-        <Text style={{ fontSize: 18, fontWeight: "800", marginBottom: 10 }}>Active Authorities</Text>
-        {activeAuthorities.length === 0 ? <Text style={{ color: "#59636E" }}>No active authorities.</Text> : null}
+      {/* Active Authorities */}
+      <View>
+        <Text style={{ fontSize: 18, fontWeight: "700", color: colors.text, marginBottom: 12 }}>
+          Active Authorities ({activeAuthorities.length})
+        </Text>
+
+        {activeAuthorities.length === 0 ? (
+          <View style={{
+            backgroundColor: colors.surfaceAlt,
+            borderRadius: 14,
+            padding: 20,
+            alignItems: "center"
+          }}>
+            <Text style={{ color: colors.textTertiary, fontSize: 15 }}>No active authorities</Text>
+          </View>
+        ) : null}
 
         {activeAuthorities.map((item) => (
           <View
             key={item.id}
-            style={{ borderWidth: 1, borderColor: "#D0D7DE", borderRadius: 10, padding: 10, marginBottom: 10 }}
+            style={{
+              backgroundColor: colors.surface,
+              borderRadius: 16,
+              padding: 16,
+              marginBottom: 10,
+              borderWidth: colors.mode === "dark" ? 1 : 0,
+              borderColor: colors.cardBorder,
+              ...(shadows?.sm || {})
+            }}
           >
-            <Text style={{ fontWeight: "700" }}>{item.name}</Text>
-            <Text style={{ color: "#2F353D" }}>{item.email}</Text>
-            <Text style={{ marginTop: 4 }}>Issues assigned: {item.issuesAssigned || 0}</Text>
-            <Text>Resolved count: {item.resolvedCount || 0}</Text>
+            <Text style={{ fontWeight: "700", color: colors.text, fontSize: 16 }}>{item.name}</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 14, marginTop: 2 }}>{item.email}</Text>
+
+            <View style={{ flexDirection: "row", gap: 16, marginTop: 10 }}>
+              <View>
+                <Text style={{ fontSize: 18, fontWeight: "800", color: colors.primary }}>{item.issuesAssigned || 0}</Text>
+                <Text style={{ fontSize: 11, color: colors.textTertiary }}>Assigned</Text>
+              </View>
+              <View>
+                <Text style={{ fontSize: 18, fontWeight: "800", color: colors.accent }}>{item.resolvedCount || 0}</Text>
+                <Text style={{ fontSize: 11, color: colors.textTertiary }}>Resolved</Text>
+              </View>
+            </View>
 
             <Pressable
               onPress={() => onRemove(item.id)}
-              style={{ marginTop: 10, borderWidth: 1, borderColor: "#CF222E", borderRadius: 8, padding: 10, opacity: processingId ? 0.6 : 1 }}
+              style={{
+                marginTop: 12,
+                borderWidth: 1.5,
+                borderColor: colors.danger,
+                borderRadius: 10,
+                paddingVertical: 10,
+                alignItems: "center",
+                opacity: processingId ? 0.6 : 1
+              }}
             >
-              <Text style={{ color: "#CF222E", textAlign: "center", fontWeight: "700" }}>Remove Authority</Text>
+              <Text style={{ color: colors.danger, fontWeight: "700", fontSize: 14 }}>Remove Authority</Text>
             </Pressable>
           </View>
         ))}
@@ -160,4 +236,3 @@ export default function HeadDashboardScreen() {
     </ScrollView>
   );
 }
-

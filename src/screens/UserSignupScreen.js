@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Alert, Pressable, Text, View } from "react-native";
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from "react-native";
 import AuthInput from "../components/AuthInput";
 import ChannelIDInput from "../components/ChannelIDInput";
 import RoleSelector from "../components/RoleSelector";
@@ -8,7 +8,7 @@ import { useTheme } from "../context/ThemeContext";
 
 export default function UserSignupScreen() {
   const { signupUser, showErrorToast } = useAuth();
-  const { colors } = useTheme();
+  const { colors, shadows } = useTheme();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -39,47 +39,91 @@ export default function UserSignupScreen() {
   };
 
   return (
-    <View style={{ flex: 1, padding: 16, justifyContent: "center", backgroundColor: colors.background }}>
-      <Text style={{ fontSize: 22, marginBottom: 16, color: colors.text, fontWeight: "700" }}>User / Authority Signup</Text>
-
-      <AuthInput value={email} onChangeText={setEmail} placeholder="Email" />
-      <AuthInput
-        value={password}
-        onChangeText={setPassword}
-        placeholder="Password"
-        secureTextEntry
-      />
-      <AuthInput
-        value={fullName}
-        onChangeText={setFullName}
-        placeholder="Full Name"
-        autoCapitalize="words"
-      />
-
-      <RoleSelector
-        selectedRole={role}
-        onSelectRole={setRole}
-        options={["User", "Authority"]}
-      />
-
-      <ChannelIDInput value={channelId} onChangeText={setChannelId} error={channelError} />
-
-      <Pressable
-        onPress={handleSignup}
-        disabled={isSubmitting}
-        style={{
-          borderWidth: 1,
-          borderColor: colors.primary,
-          backgroundColor: colors.primary,
-          padding: 10,
-          borderRadius: 6,
-          opacity: isSubmitting ? 0.7 : 1
-        }}
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: colors.background }}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <ScrollView
+        contentContainerStyle={{ flexGrow: 1, justifyContent: "center", padding: 24 }}
+        keyboardShouldPersistTaps="handled"
       >
-        <Text style={{ color: "#fff", textAlign: "center", fontWeight: "700" }}>
-          {isSubmitting ? "Creating..." : "Create Account"}
-        </Text>
-      </Pressable>
-    </View>
+        <View style={{ alignItems: "center", marginBottom: 32 }}>
+          <View style={{
+            width: 56,
+            height: 56,
+            borderRadius: 18,
+            backgroundColor: colors.primaryLight,
+            alignItems: "center",
+            justifyContent: "center",
+            marginBottom: 14
+          }}>
+            <Text style={{ fontSize: 24, fontWeight: "800", color: colors.primary }}>👤</Text>
+          </View>
+          <Text style={{
+            fontSize: 26,
+            fontWeight: "800",
+            color: colors.text,
+            letterSpacing: -0.5
+          }}>
+            Join Community
+          </Text>
+          <Text style={{ color: colors.textSecondary, marginTop: 4, fontSize: 15 }}>
+            Create your account to get started
+          </Text>
+        </View>
+
+        <View style={{
+          backgroundColor: colors.surface,
+          borderRadius: 20,
+          padding: 24,
+          borderWidth: colors.mode === "dark" ? 1 : 0,
+          borderColor: colors.cardBorder,
+          ...(shadows?.lg || {})
+        }}>
+          <AuthInput value={email} onChangeText={setEmail} placeholder="Enter your email" label="Email" />
+          <AuthInput
+            value={password}
+            onChangeText={setPassword}
+            placeholder="Create a password"
+            label="Password"
+            secureTextEntry
+          />
+          <AuthInput
+            value={fullName}
+            onChangeText={setFullName}
+            placeholder="Your full name"
+            label="Full Name"
+            autoCapitalize="words"
+          />
+
+          <Text style={{ fontSize: 13, fontWeight: "600", color: colors.textSecondary, marginBottom: 6, marginLeft: 2 }}>
+            Role
+          </Text>
+          <RoleSelector
+            selectedRole={role}
+            onSelectRole={setRole}
+            options={["User", "Authority"]}
+          />
+
+          <ChannelIDInput value={channelId} onChangeText={setChannelId} error={channelError} />
+
+          <Pressable
+            onPress={handleSignup}
+            disabled={isSubmitting}
+            style={{
+              backgroundColor: colors.primary,
+              borderRadius: 12,
+              paddingVertical: 15,
+              marginTop: 4,
+              opacity: isSubmitting ? 0.7 : 1
+            }}
+          >
+            <Text style={{ color: "#FFFFFF", textAlign: "center", fontWeight: "700", fontSize: 16 }}>
+              {isSubmitting ? "Creating..." : "Create Account"}
+            </Text>
+          </Pressable>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }

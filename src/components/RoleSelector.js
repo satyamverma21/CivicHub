@@ -6,7 +6,7 @@ export default function RoleSelector({ selectedRole, onSelectRole, options }) {
   const { colors } = useTheme();
 
   return (
-    <View style={{ flexDirection: "row", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+    <View style={{ flexDirection: "row", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
       {options.map((role) => {
         const selected = selectedRole === role;
         return (
@@ -14,15 +14,21 @@ export default function RoleSelector({ selectedRole, onSelectRole, options }) {
             key={role}
             onPress={() => onSelectRole(role)}
             style={{
-              borderWidth: 1,
-              borderColor: selected ? colors.primary : colors.border,
-              backgroundColor: selected ? `${colors.primary}22` : colors.surface,
-              paddingVertical: 8,
-              paddingHorizontal: 12,
-              borderRadius: 6
+              borderWidth: selected ? 0 : 1.5,
+              borderColor: colors.border,
+              backgroundColor: selected ? colors.primary : colors.surface,
+              paddingVertical: 10,
+              paddingHorizontal: 20,
+              borderRadius: 999
             }}
           >
-            <Text style={{ color: selected ? colors.primary : colors.text, fontWeight: "600" }}>{role}</Text>
+            <Text style={{
+              color: selected ? "#FFFFFF" : colors.text,
+              fontWeight: "600",
+              fontSize: 14
+            }}>
+              {role}
+            </Text>
           </Pressable>
         );
       })}

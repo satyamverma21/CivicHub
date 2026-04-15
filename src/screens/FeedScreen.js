@@ -16,25 +16,31 @@ import { useNetInfo } from "@react-native-community/netinfo";
 import IssueCard from "../components/IssueCard";
 import { ISSUE_CATEGORIES, getIssuesFeed, likeIssue, syncOfflineActions } from "../services/issues";
 import { useAuth } from "../context/AuthContext";
+import { useTheme } from "../context/ThemeContext";
 
-function FeedSkeleton() {
+function FeedSkeleton({ colors }) {
   return (
     <View style={{ padding: 16 }}>
       {[1, 2, 3].map((item) => (
         <View
           key={item}
           style={{
-            borderWidth: 1,
-            borderColor: "#E1E7EE",
-            borderRadius: 12,
-            padding: 12,
-            marginBottom: 12,
-            backgroundColor: "#FAFBFC"
+            borderRadius: 16,
+            padding: 16,
+            marginBottom: 14,
+            backgroundColor: colors.surface
           }}
         >
-          <View style={{ width: "40%", height: 12, backgroundColor: "#E9EDF2", borderRadius: 6 }} />
-          <View style={{ width: "70%", height: 12, backgroundColor: "#E9EDF2", borderRadius: 6, marginTop: 8 }} />
-          <View style={{ width: "100%", height: 110, backgroundColor: "#E9EDF2", borderRadius: 8, marginTop: 10 }} />
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 12 }}>
+            <View style={{ width: 40, height: 40, backgroundColor: colors.skeleton, borderRadius: 20 }} />
+            <View style={{ flex: 1 }}>
+              <View style={{ width: "50%", height: 12, backgroundColor: colors.skeleton, borderRadius: 6 }} />
+              <View style={{ width: "30%", height: 10, backgroundColor: colors.skeleton, borderRadius: 6, marginTop: 6 }} />
+            </View>
+          </View>
+          <View style={{ width: "80%", height: 14, backgroundColor: colors.skeleton, borderRadius: 6 }} />
+          <View style={{ width: "100%", height: 10, backgroundColor: colors.skeleton, borderRadius: 6, marginTop: 8 }} />
+          <View style={{ width: "100%", height: 120, backgroundColor: colors.skeleton, borderRadius: 12, marginTop: 12 }} />
         </View>
       ))}
     </View>
@@ -54,6 +60,7 @@ const SAVED_FILTER_KEY = "feed_saved_filters_v1";
 
 export default function FeedScreen({ navigation }) {
   const { currentUser, channelId, showErrorToast } = useAuth();
+  const { colors, shadows } = useTheme();
   const netInfo = useNetInfo();
   const [issues, setIssues] = useState([]);
   const [lastDoc, setLastDoc] = useState(null);
@@ -221,80 +228,160 @@ export default function FeedScreen({ navigation }) {
   }, [issues, debouncedSearch, categoryFilter, authorFilter, dateFrom, dateTo, sortBy]);
 
   if (loading) {
-    return <FeedSkeleton />;
+    return <FeedSkeleton colors={colors} />;
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#F6F8FA" }}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      {/* Offline banner */}
       {!netInfo.isConnected ? (
-        <View style={{ backgroundColor: "#FFF1D6", padding: 10 }}>
-          <Text style={{ color: "#8A4B00", textAlign: "center", fontWeight: "600" }}>
-            Offline mode. Showing cached data.
+        <View style={{ backgroundColor: colors.warningLight, paddingVertical: 10, paddingHorizontal: 16 }}>
+          <Text style={{ color: colors.warningText, textAlign: "center", fontWeight: "600", fontSize: 13 }}>
+            ⚠ Offline mode — Showing cached data
           </Text>
         </View>
       ) : null}
 
-      <View style={{ flexDirection: "row", justifyContent: "space-between", padding: 12, gap: 8 }}>
-        <Pressable onPress={() => setShowFilters((prev) => !prev)} style={{ borderWidth: 1, borderColor: "#D0D7DE", borderRadius: 8, padding: 10, flex: 1 }}>
-          <Text style={{ textAlign: "center", fontWeight: "600" }}>Filter / Sort</Text>
-        </Pressable>
+      {/* Top bar */}
+      <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8, gap: 10 }}>
+        {/* Search */}
+        <View style={{
+          flexDirection: "row",
+          backgroundColor: colors.surface,
+          borderRadius: 12,
+          borderWidth: 1.5,
+          borderColor: colors.border,
+          alignItems: "center",
+          paddingHorizontal: 14
+        }}>
+          <Text style={{ color: colors.textTertiary, fontSize: 16, marginRight: 8 }}>🔍</Text>
+          <TextInput
+            value={searchText}
+            onChangeText={setSearchText}
+            placeholder="Search issues..."
+            placeholderTextColor={colors.textTertiary}
+            style={{
+              flex: 1,
+              paddingVertical: 12,
+              fontSize: 15,
+              color: colors.text
+            }}
+          />
+        </View>
 
-        <Pressable onPress={() => navigation.navigate("CreateIssue")} style={{ backgroundColor: "#0969DA", borderRadius: 8, padding: 10, flex: 1 }}>
-          <Text style={{ textAlign: "center", fontWeight: "700", color: "#FFFFFF" }}>Report Issue</Text>
-        </Pressable>
+        {/* Action chips */}
+        <View style={{ flexDirection: "row", gap: 8 }}>
+          <Pressable
+            onPress={() => setShowFilters((prev) => !prev)}
+            style={{
+              flex: 1,
+              borderRadius: 12,
+              paddingVertical: 12,
+              backgroundColor: showFilters ? colors.primaryLight : colors.surface,
+              borderWidth: 1.5,
+              borderColor: showFilters ? colors.primary : colors.border,
+              alignItems: "center"
+            }}
+          >
+            <Text style={{ fontWeight: "600", color: showFilters ? colors.primary : colors.text, fontSize: 14 }}>
+              {showFilters ? "Hide Filters" : "Filter & Sort"}
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => navigation.navigate("CreateIssue")}
+            style={{
+              flex: 1,
+              backgroundColor: colors.primary,
+              borderRadius: 12,
+              paddingVertical: 12,
+              alignItems: "center"
+            }}
+          >
+            <Text style={{ fontWeight: "700", color: "#FFFFFF", fontSize: 14 }}>+ Report Issue</Text>
+          </Pressable>
+        </View>
       </View>
 
-      <View style={{ paddingHorizontal: 12, marginBottom: 8 }}>
-        <TextInput
-          value={searchText}
-          onChangeText={setSearchText}
-          placeholder="Search title, description, category, location"
-          style={{ borderWidth: 1, borderColor: "#D0D7DE", borderRadius: 8, padding: 10, backgroundColor: "#FFFFFF" }}
-        />
-      </View>
-
+      {/* Filters panel */}
       {showFilters ? (
-        <View style={{ marginHorizontal: 12, borderWidth: 1, borderColor: "#D0D7DE", borderRadius: 10, backgroundColor: "#FFFFFF", marginBottom: 8 }}>
-          <Text style={{ paddingTop: 10, paddingHorizontal: 10, fontWeight: "700" }}>Sort</Text>
-          <Picker selectedValue={sortBy} onValueChange={(val) => setSortBy(val)}>
-            <Picker.Item label="Newest" value="recent" />
-            <Picker.Item label="Most Liked" value="most-liked" />
-            <Picker.Item label="Most Commented" value="most-commented" />
-          </Picker>
-
-          <Text style={{ paddingHorizontal: 10, fontWeight: "700" }}>Status</Text>
-          <Picker selectedValue={statusFilter} onValueChange={(val) => setStatusFilter(val)}>
-            <Picker.Item label="All" value="all" />
-            <Picker.Item label="Open" value="open" />
-            <Picker.Item label="In Progress" value="in_progress" />
-            <Picker.Item label="Resolved" value="resolved" />
-            <Picker.Item label="Closed" value="closed" />
-          </Picker>
-
-          <Text style={{ paddingHorizontal: 10, fontWeight: "700" }}>Category</Text>
-          <Picker selectedValue={categoryFilter} onValueChange={(val) => setCategoryFilter(val)}>
-            <Picker.Item label="All" value="all" />
-            {ISSUE_CATEGORIES.map((category) => <Picker.Item key={category} label={category} value={category} />)}
-          </Picker>
-
-          <View style={{ flexDirection: "row", gap: 8, paddingHorizontal: 10, paddingBottom: 10 }}>
-            <TextInput value={authorFilter} onChangeText={setAuthorFilter} placeholder="Author" style={{ flex: 1, borderWidth: 1, borderColor: "#D0D7DE", borderRadius: 8, padding: 10 }} />
-            <TextInput value={dateFrom} onChangeText={setDateFrom} placeholder="From YYYY-MM-DD" style={{ flex: 1, borderWidth: 1, borderColor: "#D0D7DE", borderRadius: 8, padding: 10 }} />
-            <TextInput value={dateTo} onChangeText={setDateTo} placeholder="To YYYY-MM-DD" style={{ flex: 1, borderWidth: 1, borderColor: "#D0D7DE", borderRadius: 8, padding: 10 }} />
+        <View style={{
+          marginHorizontal: 16,
+          backgroundColor: colors.surface,
+          borderRadius: 16,
+          padding: 16,
+          marginBottom: 8,
+          borderWidth: colors.mode === "dark" ? 1 : 0,
+          borderColor: colors.cardBorder,
+          ...(shadows?.md || {})
+        }}>
+          <Text style={{ fontWeight: "700", color: colors.text, marginBottom: 6, fontSize: 14 }}>Sort By</Text>
+          <View style={{ borderWidth: 1.5, borderColor: colors.border, borderRadius: 10, backgroundColor: colors.surface, marginBottom: 10 }}>
+            <Picker selectedValue={sortBy} onValueChange={(val) => setSortBy(val)} style={{ color: colors.text }}>
+              <Picker.Item label="Newest" value="recent" />
+              <Picker.Item label="Most Liked" value="most-liked" />
+              <Picker.Item label="Most Commented" value="most-commented" />
+            </Picker>
           </View>
 
-          <Pressable onPress={saveFilters} style={{ marginHorizontal: 10, marginBottom: 10, borderWidth: 1, borderColor: "#D0D7DE", borderRadius: 8, padding: 10 }}>
-            <Text style={{ textAlign: "center", fontWeight: "600" }}>Save Filters</Text>
+          <Text style={{ fontWeight: "700", color: colors.text, marginBottom: 6, fontSize: 14 }}>Status</Text>
+          <View style={{ borderWidth: 1.5, borderColor: colors.border, borderRadius: 10, backgroundColor: colors.surface, marginBottom: 10 }}>
+            <Picker selectedValue={statusFilter} onValueChange={(val) => setStatusFilter(val)} style={{ color: colors.text }}>
+              <Picker.Item label="All" value="all" />
+              <Picker.Item label="Open" value="open" />
+              <Picker.Item label="In Progress" value="in_progress" />
+              <Picker.Item label="Resolved" value="resolved" />
+              <Picker.Item label="Closed" value="closed" />
+            </Picker>
+          </View>
+
+          <Text style={{ fontWeight: "700", color: colors.text, marginBottom: 6, fontSize: 14 }}>Category</Text>
+          <View style={{ borderWidth: 1.5, borderColor: colors.border, borderRadius: 10, backgroundColor: colors.surface, marginBottom: 10 }}>
+            <Picker selectedValue={categoryFilter} onValueChange={(val) => setCategoryFilter(val)} style={{ color: colors.text }}>
+              <Picker.Item label="All" value="all" />
+              {ISSUE_CATEGORIES.map((category) => <Picker.Item key={category} label={category} value={category} />)}
+            </Picker>
+          </View>
+
+          <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
+            <TextInput
+              value={authorFilter} onChangeText={setAuthorFilter} placeholder="Author"
+              placeholderTextColor={colors.textTertiary}
+              style={{ flex: 1, borderWidth: 1.5, borderColor: colors.border, borderRadius: 10, padding: 10, color: colors.text, backgroundColor: colors.surface, fontSize: 14 }}
+            />
+            <TextInput
+              value={dateFrom} onChangeText={setDateFrom} placeholder="From YYYY-MM-DD"
+              placeholderTextColor={colors.textTertiary}
+              style={{ flex: 1, borderWidth: 1.5, borderColor: colors.border, borderRadius: 10, padding: 10, color: colors.text, backgroundColor: colors.surface, fontSize: 14 }}
+            />
+            <TextInput
+              value={dateTo} onChangeText={setDateTo} placeholder="To YYYY-MM-DD"
+              placeholderTextColor={colors.textTertiary}
+              style={{ flex: 1, borderWidth: 1.5, borderColor: colors.border, borderRadius: 10, padding: 10, color: colors.text, backgroundColor: colors.surface, fontSize: 14 }}
+            />
+          </View>
+
+          <Pressable
+            onPress={saveFilters}
+            style={{ backgroundColor: colors.surfaceAlt, borderRadius: 10, paddingVertical: 11 }}
+          >
+            <Text style={{ textAlign: "center", fontWeight: "600", color: colors.primary, fontSize: 14 }}>Save Filters</Text>
           </Pressable>
         </View>
       ) : null}
 
+      {/* Issue list */}
       <FlatList
         data={filteredIssues}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 20 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        ListEmptyComponent={<View style={{ paddingVertical: 50, alignItems: "center" }}><Text style={{ color: "#59636E" }}>No issues yet. Be the first to report!</Text></View>}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />}
+        ListEmptyComponent={
+          <View style={{ paddingVertical: 60, alignItems: "center" }}>
+            <Text style={{ fontSize: 40, marginBottom: 12 }}>📭</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 16, fontWeight: "600" }}>No issues yet</Text>
+            <Text style={{ color: colors.textTertiary, fontSize: 14, marginTop: 4 }}>Be the first to report!</Text>
+          </View>
+        }
         renderItem={({ item }) => (
           <IssueCard
             issue={item}
@@ -307,10 +394,19 @@ export default function FeedScreen({ navigation }) {
         ListFooterComponent={
           filteredIssues.length > 0 ? (
             <View style={{ marginVertical: 8 }}>
-              {loadingMore ? <ActivityIndicator /> : null}
+              {loadingMore ? <ActivityIndicator color={colors.primary} /> : null}
               {!loadingMore && hasMore ? (
-                <Pressable onPress={onLoadMore} style={{ borderWidth: 1, borderColor: "#D0D7DE", borderRadius: 8, padding: 10 }}>
-                  <Text style={{ textAlign: "center", fontWeight: "600" }}>Load More</Text>
+                <Pressable
+                  onPress={onLoadMore}
+                  style={{
+                    borderWidth: 1.5,
+                    borderColor: colors.border,
+                    borderRadius: 12,
+                    paddingVertical: 12,
+                    backgroundColor: colors.surface
+                  }}
+                >
+                  <Text style={{ textAlign: "center", fontWeight: "600", color: colors.primary, fontSize: 14 }}>Load More</Text>
                 </Pressable>
               ) : null}
             </View>

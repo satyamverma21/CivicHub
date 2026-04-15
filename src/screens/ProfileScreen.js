@@ -1,13 +1,14 @@
 import React, { useCallback, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../context/AuthContext";
+import AuthInput from "../components/AuthInput";
 import { formatTimestamp } from "../services/issues";
 import { useTheme } from "../context/ThemeContext";
 
 export default function ProfileScreen({ navigation }) {
   const { currentUser, userRole, getMyProfileStats, updateMyProfile, showErrorToast } = useAuth();
-  const { colors } = useTheme();
+  const { colors, shadows } = useTheme();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [stats, setStats] = useState({ issuesCreated: 0, commentsMade: 0, issuesResolved: 0, myIssues: [], myComments: [] });
@@ -55,50 +56,163 @@ export default function ProfileScreen({ navigation }) {
   };
 
   if (loading) {
-    return <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.background }}><ActivityIndicator color={colors.primary} /></View>;
+    return (
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.background }}>
+        <ActivityIndicator color={colors.primary} />
+      </View>
+    );
   }
 
+  const initials = (currentUser?.name || "U")[0].toUpperCase();
+
   return (
-    <ScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={{ padding: 16, paddingBottom: 30 }}>
-      <Text style={{ fontSize: 24, fontWeight: "800", color: colors.text }}>Profile</Text>
-      <Text style={{ marginTop: 6, color: colors.text }}>Role: {userRole}</Text>
-      <Text style={{ color: colors.text }}>Channel: {currentUser?.channelId || "-"}</Text>
-
-      <Text style={{ fontWeight: "700", marginTop: 12, color: colors.text }}>Name</Text>
-      <TextInput value={name} onChangeText={setName} style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 10, marginTop: 6, color: colors.text, backgroundColor: colors.surface }} />
-      <Text style={{ fontWeight: "700", marginTop: 12, color: colors.text }}>Avatar URL</Text>
-      <TextInput value={avatar} onChangeText={setAvatar} style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 10, marginTop: 6, color: colors.text, backgroundColor: colors.surface }} />
-      <Text style={{ fontWeight: "700", marginTop: 12, color: colors.text }}>Bio</Text>
-      <TextInput value={bio} onChangeText={setBio} multiline style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 10, marginTop: 6, minHeight: 80, textAlignVertical: "top", color: colors.text, backgroundColor: colors.surface }} />
-
-      <Pressable onPress={onSave} style={{ marginTop: 12, backgroundColor: "#0969DA", borderRadius: 8, padding: 12, opacity: saving ? 0.6 : 1 }}>
-        <Text style={{ color: "#FFF", textAlign: "center", fontWeight: "700" }}>{saving ? "Saving..." : "Save Profile"}</Text>
-      </Pressable>
-
-      <View style={{ marginTop: 18, borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 10, backgroundColor: colors.surface }}>
-        <Text style={{ fontWeight: "800", marginBottom: 8, color: colors.text }}>Stats</Text>
-        <Text style={{ color: colors.text }}>Issues created: {stats.issuesCreated}</Text>
-        <Text style={{ color: colors.text }}>Comments made: {stats.commentsMade}</Text>
-        <Text style={{ color: colors.text }}>Issues resolved: {stats.issuesResolved}</Text>
-        {userRole === "Authority" ? <Text style={{ marginTop: 6, color: colors.text }}>Satisfaction rating: - (placeholder)</Text> : null}
+    <ScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
+      {/* Profile Header */}
+      <View style={{
+        backgroundColor: colors.surface,
+        borderRadius: 20,
+        padding: 24,
+        alignItems: "center",
+        borderWidth: colors.mode === "dark" ? 1 : 0,
+        borderColor: colors.cardBorder,
+        ...(shadows?.lg || {})
+      }}>
+        <View style={{
+          width: 72,
+          height: 72,
+          borderRadius: 36,
+          backgroundColor: colors.primaryLight,
+          alignItems: "center",
+          justifyContent: "center",
+          borderWidth: 3,
+          borderColor: colors.primary,
+          marginBottom: 12
+        }}>
+          <Text style={{ fontSize: 28, fontWeight: "800", color: colors.primary }}>{initials}</Text>
+        </View>
+        <Text style={{ fontSize: 22, fontWeight: "800", color: colors.text }}>{currentUser?.name || "User"}</Text>
+        <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
+          <View style={{ backgroundColor: colors.primaryLight, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 4 }}>
+            <Text style={{ color: colors.primary, fontWeight: "600", fontSize: 12 }}>{userRole}</Text>
+          </View>
+          <View style={{ backgroundColor: colors.surfaceAlt, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 4 }}>
+            <Text style={{ color: colors.textSecondary, fontWeight: "500", fontSize: 12 }}>{currentUser?.channelId || "No channel"}</Text>
+          </View>
+        </View>
       </View>
 
-      <Text style={{ fontSize: 18, fontWeight: "800", marginTop: 18, color: colors.text }}>My Issues</Text>
-      {stats.myIssues.map((issue) => (
-        <Pressable key={issue.id} onPress={() => navigation.navigate("IssueDetail", { issueId: issue.id })} style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 10, marginTop: 8, backgroundColor: colors.surface }}>
-          <Text style={{ fontWeight: "700", color: colors.text }}>{issue.title}</Text>
-          <Text style={{ color: colors.text }}>{issue.status}</Text>
-          <Text style={{ color: colors.muted }}>{formatTimestamp(issue.createdAt)}</Text>
-        </Pressable>
-      ))}
+      {/* Stats Grid */}
+      <View style={{ flexDirection: "row", gap: 10, marginTop: 16 }}>
+        {[
+          { label: "Issues", value: stats.issuesCreated },
+          { label: "Comments", value: stats.commentsMade },
+          { label: "Resolved", value: stats.issuesResolved }
+        ].map((stat) => (
+          <View key={stat.label} style={{
+            flex: 1,
+            backgroundColor: colors.surface,
+            borderRadius: 16,
+            padding: 14,
+            alignItems: "center",
+            borderWidth: colors.mode === "dark" ? 1 : 0,
+            borderColor: colors.cardBorder,
+            ...(shadows?.sm || {})
+          }}>
+            <Text style={{ fontSize: 22, fontWeight: "800", color: colors.primary }}>{stat.value}</Text>
+            <Text style={{ fontSize: 12, color: colors.textTertiary, marginTop: 2, fontWeight: "500" }}>{stat.label}</Text>
+          </View>
+        ))}
+      </View>
 
-      <Text style={{ fontSize: 18, fontWeight: "800", marginTop: 18, color: colors.text }}>My Comments</Text>
-      {stats.myComments.map((comment) => (
-        <View key={comment.id} style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 10, marginTop: 8, backgroundColor: colors.surface }}>
-          <Text style={{ color: colors.text }}>{comment.text}</Text>
-          <Text style={{ color: colors.muted }}>{formatTimestamp(comment.createdAt)}</Text>
+      {/* Edit Form */}
+      <View style={{
+        backgroundColor: colors.surface,
+        borderRadius: 20,
+        padding: 20,
+        marginTop: 16,
+        borderWidth: colors.mode === "dark" ? 1 : 0,
+        borderColor: colors.cardBorder,
+        ...(shadows?.md || {})
+      }}>
+        <Text style={{ fontSize: 17, fontWeight: "700", color: colors.text, marginBottom: 14 }}>Edit Profile</Text>
+        <AuthInput value={name} onChangeText={setName} label="Name" placeholder="Your name" autoCapitalize="words" />
+        <AuthInput value={avatar} onChangeText={setAvatar} label="Avatar URL" placeholder="https://..." />
+        <AuthInput value={bio} onChangeText={setBio} label="Bio" placeholder="Tell us about yourself..." multiline maxLength={250} />
+
+        <Pressable
+          onPress={onSave}
+          style={{
+            backgroundColor: colors.primary,
+            borderRadius: 12,
+            paddingVertical: 14,
+            marginTop: 4,
+            opacity: saving ? 0.6 : 1
+          }}
+        >
+          <Text style={{ color: "#FFFFFF", textAlign: "center", fontWeight: "700", fontSize: 16 }}>
+            {saving ? "Saving..." : "Save Profile"}
+          </Text>
+        </Pressable>
+      </View>
+
+      {/* My Issues */}
+      {stats.myIssues.length > 0 ? (
+        <View style={{ marginTop: 20 }}>
+          <Text style={{ fontSize: 18, fontWeight: "700", color: colors.text, marginBottom: 10 }}>My Issues</Text>
+          {stats.myIssues.map((issue) => (
+            <Pressable
+              key={issue.id}
+              onPress={() => navigation.navigate("IssueDetail", { issueId: issue.id })}
+              style={{
+                backgroundColor: colors.surface,
+                borderRadius: 14,
+                padding: 14,
+                marginBottom: 10,
+                borderWidth: colors.mode === "dark" ? 1 : 0,
+                borderColor: colors.cardBorder,
+                ...(shadows?.sm || {})
+              }}
+            >
+              <Text style={{ fontWeight: "700", color: colors.text, fontSize: 15 }}>{issue.title}</Text>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 6 }}>
+                <View style={{
+                  backgroundColor: colors.primaryLight,
+                  borderRadius: 999,
+                  paddingHorizontal: 10,
+                  paddingVertical: 3
+                }}>
+                  <Text style={{ color: colors.primary, fontSize: 11, fontWeight: "600" }}>{issue.status}</Text>
+                </View>
+                <Text style={{ color: colors.textTertiary, fontSize: 12 }}>{formatTimestamp(issue.createdAt)}</Text>
+              </View>
+            </Pressable>
+          ))}
         </View>
-      ))}
+      ) : null}
+
+      {/* My Comments */}
+      {stats.myComments.length > 0 ? (
+        <View style={{ marginTop: 20 }}>
+          <Text style={{ fontSize: 18, fontWeight: "700", color: colors.text, marginBottom: 10 }}>My Comments</Text>
+          {stats.myComments.map((comment) => (
+            <View
+              key={comment.id}
+              style={{
+                backgroundColor: colors.surface,
+                borderRadius: 14,
+                padding: 14,
+                marginBottom: 10,
+                borderWidth: colors.mode === "dark" ? 1 : 0,
+                borderColor: colors.cardBorder,
+                ...(shadows?.sm || {})
+              }}
+            >
+              <Text style={{ color: colors.text, fontSize: 14, lineHeight: 20 }}>{comment.text}</Text>
+              <Text style={{ color: colors.textTertiary, fontSize: 12, marginTop: 6 }}>{formatTimestamp(comment.createdAt)}</Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
     </ScrollView>
   );
 }

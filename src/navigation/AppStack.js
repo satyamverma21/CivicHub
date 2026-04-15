@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import HomeScreen from "../screens/HomeScreen";
 import FeedScreen from "../screens/FeedScreen";
@@ -14,18 +14,26 @@ import { useTheme } from "../context/ThemeContext";
 const Stack = createNativeStackNavigator();
 
 export default function AppStack() {
-  const { colors } = useTheme();
+  const { colors, shadows } = useTheme();
 
   return (
     <Stack.Navigator
       screenOptions={{
-        headerStyle: { backgroundColor: colors.surface },
+        headerStyle: {
+          backgroundColor: colors.surface
+        },
         headerTintColor: colors.text,
-        headerTitleStyle: { color: colors.text },
+        headerTitleStyle: {
+          color: colors.text,
+          fontWeight: "700",
+          fontSize: 17
+        },
+        headerShadowVisible: false,
+        headerBackTitleVisible: false,
         contentStyle: { backgroundColor: colors.background }
       }}
     >
-      <Stack.Screen name="Home" component={HomeScreen} />
+      <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Feed" component={FeedScreen} options={{ title: "Issues Feed" }} />
       <Stack.Screen name="CreateIssue" component={CreateIssueScreen} options={{ title: "Report Issue" }} />
       <Stack.Screen name="IssueDetail" component={IssueDetailScreen} options={{ title: "Issue Detail" }} />
@@ -38,11 +46,10 @@ export default function AppStack() {
       <Stack.Screen
         name="SuperAdminDashboard"
         component={SuperAdminDashboardScreen}
-        options={{ title: "SuperAdmin Dashboard" }}
+        options={{ title: "SuperAdmin", headerShown: false }}
       />
       <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: "Profile" }} />
-      <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: "Settings" }} />
+      <Stack.Screen name="Settings" component={SettingsScreen} options={{ headerShown: false }} />
     </Stack.Navigator>
   );
 }
-

@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -35,6 +35,8 @@ import {
   updateIssueStatus
 } from "../services/issues";
 import { useAuth } from "../context/AuthContext";
+import { useTheme } from "../context/ThemeContext";
+import { inputStyle, inputFocusStyle } from "../styles";
 
 const STATUS_TRANSITIONS = {
   open: ["in_progress"],
@@ -46,6 +48,7 @@ const STATUS_TRANSITIONS = {
 export default function IssueDetailScreen({ route, navigation }) {
   const { issueId } = route.params;
   const { currentUser, userRole, channelId, showErrorToast } = useAuth();
+  const { colors, shadows } = useTheme();
   const [issue, setIssue] = useState(null);
   const [comments, setComments] = useState([]);
   const [statusHistory, setStatusHistory] = useState([]);
@@ -127,7 +130,6 @@ export default function IssueDetailScreen({ route, navigation }) {
     if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) {
       throw new Error(`${asset.fileName || "Image"} is larger than 5MB.`);
     }
-
     if (!asset.fileSize) {
       const info = await FileSystem.getInfoAsync(asset.uri, { size: true });
       if (info.size && info.size > 5 * 1024 * 1024) {
@@ -146,10 +148,7 @@ export default function IssueDetailScreen({ route, navigation }) {
   };
 
   const onSendComment = async () => {
-    if (sendingComment) {
-      return;
-    }
-
+    if (sendingComment) return;
     setSendingComment(true);
     try {
       await addComment(issueId, currentUser.uid, commentText);
@@ -169,28 +168,21 @@ export default function IssueDetailScreen({ route, navigation }) {
       if (!permission.granted) {
         throw new Error("Photo permission is required.");
       }
-
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsMultipleSelection: true,
         selectionLimit: 2,
         quality: 0.85
       });
-
-      if (result.canceled) {
-        return;
-      }
-
+      if (result.canceled) return;
       const picked = result.assets || [];
       if (picked.length + progressImages.length > 2) {
         throw new Error("Only up to 2 images are allowed.");
       }
-
       for (const asset of picked) {
         // eslint-disable-next-line no-await-in-loop
         await ensureSize(asset);
       }
-
       setProgressImages((prev) => [...prev, ...picked]);
     } catch (error) {
       showErrorToast(error);
@@ -198,10 +190,7 @@ export default function IssueDetailScreen({ route, navigation }) {
   };
 
   const onSaveProgress = async () => {
-    if (savingProgress) {
-      return;
-    }
-
+    if (savingProgress) return;
     setSavingProgress(true);
     try {
       await addProgressUpdate(issueId, currentUser.uid, progressText, progressImages);
@@ -235,14 +224,11 @@ export default function IssueDetailScreen({ route, navigation }) {
   };
 
   const onSaveStatus = async () => {
-    if (savingStatus) {
-      return;
-    }
+    if (savingStatus) return;
     if (nextAllowedStatuses.length === 0) {
       showErrorToast(new Error("No further status changes allowed."));
       return;
     }
-
     setSavingStatus(true);
     try {
       await updateIssueStatus(issueId, selectedStatus, currentUser.uid, statusNote);
@@ -270,10 +256,7 @@ export default function IssueDetailScreen({ route, navigation }) {
   };
 
   const onSaveAssignments = async () => {
-    if (savingAssignments) {
-      return;
-    }
-
+    if (savingAssignments) return;
     setSavingAssignments(true);
     try {
       await manuallyAssignIssue(issueId, selectedAuthorities, currentUser.uid);
@@ -303,160 +286,224 @@ export default function IssueDetailScreen({ route, navigation }) {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-        <ActivityIndicator />
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.background }}>
+        <ActivityIndicator color={colors.primary} />
       </View>
     );
   }
 
   if (!issue) {
     return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-        <Text>Issue not found.</Text>
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.background }}>
+        <Text style={{ fontSize: 36, marginBottom: 10 }}>🔍</Text>
+        <Text style={{ color: colors.textSecondary, fontSize: 16, fontWeight: "600" }}>Issue not found</Text>
       </View>
     );
   }
 
+  const base = inputStyle(colors);
+
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 30 }}>
+    <ScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
       {!editMode ? (
         <>
-          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-            <Text style={{ fontSize: 24, fontWeight: "800", flex: 1, paddingRight: 10 }}>{issue.title}</Text>
-            <StatusBadge status={issue.status} />
-          </View>
+          {/* Hero Header */}
+          <View style={{
+            backgroundColor: colors.surface,
+            borderRadius: 20,
+            padding: 20,
+            borderWidth: colors.mode === "dark" ? 1 : 0,
+            borderColor: colors.cardBorder,
+            ...(shadows?.lg || {})
+          }}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <Text style={{ fontSize: 24, fontWeight: "800", flex: 1, paddingRight: 12, color: colors.text, lineHeight: 30 }}>
+                {issue.title}
+              </Text>
+              <StatusBadge status={issue.status} />
+            </View>
 
-          <Text style={{ color: "#59636E", marginTop: 4 }}>
-            By {issue.authorName} • {formatTimestamp(issue.createdAt)}
-          </Text>
+            <Text style={{ color: colors.textSecondary, marginTop: 8, fontSize: 14 }}>
+              By {issue.authorName} · {formatTimestamp(issue.createdAt)}
+            </Text>
 
-          <View style={{ marginTop: 10 }}>
-            <CategoryBadge category={issue.category} />
-          </View>
+            <View style={{ flexDirection: "row", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+              <CategoryBadge category={issue.category} />
+              {issue.isVoiceReport ? (
+                <View style={{ backgroundColor: colors.infoLight, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 }}>
+                  <Text style={{ color: colors.info, fontSize: 11, fontWeight: "700" }}>Voice Report</Text>
+                </View>
+              ) : null}
+              {issue.isAIRefined ? (
+                <View style={{ backgroundColor: colors.accentLight, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 }}>
+                  <Text style={{ color: colors.accent, fontSize: 11, fontWeight: "700" }}>AI-enhanced</Text>
+                </View>
+              ) : null}
+            </View>
 
-          <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
-            {issue.isVoiceReport ? (
-              <View style={{ backgroundColor: "#EDE9FE", borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4 }}>
-                <Text style={{ color: "#4C1D95", fontSize: 11, fontWeight: "700" }}>Voice Report</Text>
+            {issue.aiSummary ? (
+              <View style={{
+                marginTop: 14,
+                backgroundColor: colors.surfaceAlt,
+                borderRadius: 12,
+                padding: 14,
+                borderLeftWidth: 3,
+                borderLeftColor: colors.primary
+              }}>
+                <Text style={{ fontWeight: "700", color: colors.text, marginBottom: 4, fontSize: 13 }}>AI Summary</Text>
+                <Text style={{ color: colors.textSecondary, lineHeight: 20, fontSize: 14 }}>{issue.aiSummary}</Text>
               </View>
             ) : null}
-            {issue.isAIRefined ? (
-              <View style={{ backgroundColor: "#E6FFEC", borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4 }}>
-                <Text style={{ color: "#1A7F37", fontSize: 11, fontWeight: "700" }}>AI-enhanced</Text>
+
+            {Array.isArray(issue.keywords) && issue.keywords.length > 0 ? (
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 12 }}>
+                {issue.keywords.map((kw) => (
+                  <View key={kw} style={{ backgroundColor: colors.surfaceAlt, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 }}>
+                    <Text style={{ color: colors.textTertiary, fontSize: 12, fontWeight: "500" }}>#{kw}</Text>
+                  </View>
+                ))}
               </View>
             ) : null}
+
+            <View style={{ height: 1, backgroundColor: colors.borderLight, marginVertical: 14 }} />
+
+            <Text style={{ color: colors.text, fontSize: 15, lineHeight: 22 }}>{issue.description}</Text>
+            <ImageCarousel images={issue.images || []} />
+
+            {/* Action bar */}
+            <View style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginTop: 16,
+              paddingTop: 14,
+              borderTopWidth: 1,
+              borderTopColor: colors.borderLight
+            }}>
+              <Pressable onPress={onLike} hitSlop={8} style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <Text style={{ fontSize: 16 }}>{liked ? "❤️" : "🤍"}</Text>
+                <Text style={{ color: liked ? colors.danger : colors.textSecondary, fontWeight: "600", fontSize: 14 }}>
+                  {issue.likesCount || 0}
+                </Text>
+              </Pressable>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <Text style={{ fontSize: 14 }}>💬</Text>
+                <Text style={{ color: colors.textSecondary, fontWeight: "600", fontSize: 14 }}>
+                  {issue.commentsCount || 0}
+                </Text>
+              </View>
+              <Pressable onPress={onShare}>
+                <Text style={{ color: colors.primary, fontWeight: "600", fontSize: 14 }}>Share</Text>
+              </Pressable>
+            </View>
           </View>
 
-          {issue.aiSummary ? (
-            <View style={{ marginTop: 10, borderWidth: 1, borderColor: "#D0D7DE", borderRadius: 8, padding: 10 }}>
-              <Text style={{ fontWeight: "700", marginBottom: 4 }}>AI Summary</Text>
-              <Text style={{ color: "#1F2328" }}>{issue.aiSummary}</Text>
+          {/* Author actions */}
+          {isAuthor ? (
+            <View style={{ flexDirection: "row", gap: 10, marginTop: 14 }}>
+              <Pressable
+                onPress={() => setEditMode(true)}
+                style={{
+                  flex: 1,
+                  borderWidth: 1.5,
+                  borderColor: colors.primary,
+                  borderRadius: 12,
+                  paddingVertical: 12,
+                  alignItems: "center"
+                }}
+              >
+                <Text style={{ color: colors.primary, fontWeight: "700", fontSize: 14 }}>Edit Issue</Text>
+              </Pressable>
+              <Pressable
+                onPress={onDelete}
+                style={{
+                  flex: 1,
+                  borderWidth: 1.5,
+                  borderColor: colors.danger,
+                  borderRadius: 12,
+                  paddingVertical: 12,
+                  alignItems: "center"
+                }}
+              >
+                <Text style={{ color: colors.danger, fontWeight: "700", fontSize: 14 }}>Delete</Text>
+              </Pressable>
             </View>
           ) : null}
-
-          {Array.isArray(issue.keywords) && issue.keywords.length > 0 ? (
-            <View style={{ marginTop: 8 }}>
-              <Text style={{ color: "#59636E" }}>Keywords: {issue.keywords.join(", ")}</Text>
-            </View>
-          ) : null}
-
-          <Text style={{ marginTop: 12, color: "#1F2328", lineHeight: 20 }}>{issue.description}</Text>
-          <ImageCarousel images={issue.images || []} />
         </>
       ) : (
-        <View>
-          <Text style={{ fontWeight: "700", marginBottom: 6 }}>Edit Title</Text>
+        /* Edit mode */
+        <View style={{
+          backgroundColor: colors.surface,
+          borderRadius: 20,
+          padding: 20,
+          borderWidth: colors.mode === "dark" ? 1 : 0,
+          borderColor: colors.cardBorder,
+          ...(shadows?.lg || {})
+        }}>
+          <Text style={{ fontSize: 20, fontWeight: "800", color: colors.text, marginBottom: 16 }}>Edit Issue</Text>
+
+          <Text style={{ fontSize: 13, fontWeight: "600", color: colors.textSecondary, marginBottom: 6 }}>Title</Text>
           <TextInput
             value={editTitle}
             onChangeText={setEditTitle}
             maxLength={100}
-            style={{
-              borderWidth: 1,
-              borderColor: "#D0D7DE",
-              borderRadius: 8,
-              padding: 12,
-              backgroundColor: "#FFFFFF"
-            }}
+            style={[base, { marginBottom: 14 }]}
+            placeholderTextColor={colors.textTertiary}
           />
-          <Text style={{ fontWeight: "700", marginBottom: 6, marginTop: 12 }}>Edit Description</Text>
+
+          <Text style={{ fontSize: 13, fontWeight: "600", color: colors.textSecondary, marginBottom: 6 }}>Description</Text>
           <TextInput
             value={editDescription}
             onChangeText={setEditDescription}
             multiline
             maxLength={5000}
-            style={{
-              borderWidth: 1,
-              borderColor: "#D0D7DE",
-              borderRadius: 8,
-              padding: 12,
-              minHeight: 120,
-              textAlignVertical: "top",
-              backgroundColor: "#FFFFFF"
-            }}
+            style={[base, { minHeight: 120, textAlignVertical: "top", marginBottom: 14 }]}
+            placeholderTextColor={colors.textTertiary}
           />
-          <Text style={{ fontWeight: "700", marginBottom: 6, marginTop: 12 }}>Category</Text>
-          <View style={{ borderWidth: 1, borderColor: "#D0D7DE", borderRadius: 8, backgroundColor: "#FFFFFF" }}>
-            <Picker selectedValue={editCategory} onValueChange={(value) => setEditCategory(value)}>
+
+          <Text style={{ fontSize: 13, fontWeight: "600", color: colors.textSecondary, marginBottom: 6 }}>Category</Text>
+          <View style={{ borderWidth: 1.5, borderColor: colors.border, borderRadius: 12, backgroundColor: colors.surface, marginBottom: 14 }}>
+            <Picker selectedValue={editCategory} onValueChange={(value) => setEditCategory(value)} style={{ color: colors.text }}>
               <Picker.Item label="Select Category" value="" />
-              {ISSUE_CATEGORIES.map((item) => (
-                <Picker.Item key={item} label={item} value={item} />
-              ))}
+              {ISSUE_CATEGORIES.map((item) => <Picker.Item key={item} label={item} value={item} />)}
             </Picker>
           </View>
-          <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
+
+          <View style={{ flexDirection: "row", gap: 10 }}>
             <Pressable
               onPress={onSaveEdit}
-              style={{ backgroundColor: "#0969DA", padding: 10, borderRadius: 8, flex: 1 }}
+              style={{ backgroundColor: colors.primary, borderRadius: 12, paddingVertical: 13, flex: 1, alignItems: "center" }}
             >
-              <Text style={{ color: "#FFFFFF", textAlign: "center", fontWeight: "700" }}>Save</Text>
+              <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 15 }}>Save</Text>
             </Pressable>
             <Pressable
               onPress={() => setEditMode(false)}
-              style={{ borderWidth: 1, borderColor: "#D0D7DE", padding: 10, borderRadius: 8, flex: 1 }}
+              style={{ borderWidth: 1.5, borderColor: colors.border, borderRadius: 12, paddingVertical: 12, flex: 1, alignItems: "center" }}
             >
-              <Text style={{ textAlign: "center", fontWeight: "700" }}>Cancel</Text>
+              <Text style={{ fontWeight: "700", color: colors.text, fontSize: 15 }}>Cancel</Text>
             </Pressable>
           </View>
         </View>
       )}
 
-      <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 14 }}>
-        <Pressable onPress={onLike}>
-          <Text style={{ color: liked ? "#D1242F" : "#2F353D", fontWeight: "700" }}>
-            {liked ? "?" : "?"} {issue.likesCount || 0}
-          </Text>
-        </Pressable>
-        <Text style={{ color: "#2F353D", fontWeight: "700" }}>Comments {issue.commentsCount || 0}</Text>
-        <Pressable onPress={onShare}>
-          <Text style={{ color: "#0969DA", fontWeight: "700" }}>Share</Text>
-        </Pressable>
-      </View>
-
-      {isAuthor && !editMode ? (
-        <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
-          <Pressable
-            onPress={() => setEditMode(true)}
-            style={{ borderWidth: 1, borderColor: "#D0D7DE", borderRadius: 8, padding: 10, flex: 1 }}
-          >
-            <Text style={{ textAlign: "center", fontWeight: "700" }}>Edit</Text>
-          </Pressable>
-          <Pressable
-            onPress={onDelete}
-            style={{ borderWidth: 1, borderColor: "#CF222E", borderRadius: 8, padding: 10, flex: 1 }}
-          >
-            <Text style={{ textAlign: "center", color: "#CF222E", fontWeight: "700" }}>Delete</Text>
-          </Pressable>
-        </View>
-      ) : null}
-
+      {/* Change Status */}
       {canUpdateStatus ? (
-        <View style={{ marginTop: 16, borderWidth: 1, borderColor: "#D0D7DE", borderRadius: 10, padding: 10 }}>
-          <Text style={{ fontWeight: "800", marginBottom: 6 }}>Change Status</Text>
-          <View style={{ borderWidth: 1, borderColor: "#D0D7DE", borderRadius: 8, backgroundColor: "#FFFFFF" }}>
+        <View style={{
+          marginTop: 16,
+          backgroundColor: colors.surface,
+          borderRadius: 16,
+          padding: 16,
+          borderWidth: colors.mode === "dark" ? 1 : 0,
+          borderColor: colors.cardBorder,
+          ...(shadows?.md || {})
+        }}>
+          <Text style={{ fontWeight: "800", fontSize: 16, color: colors.text, marginBottom: 10 }}>Change Status</Text>
+          <View style={{ borderWidth: 1.5, borderColor: colors.border, borderRadius: 10, backgroundColor: colors.surface }}>
             <Picker
               enabled={nextAllowedStatuses.length > 0}
               selectedValue={selectedStatus}
               onValueChange={(value) => setSelectedStatus(value)}
+              style={{ color: colors.text }}
             >
               {nextAllowedStatuses.length === 0 ? (
                 <Picker.Item label="No more transitions" value={issue.status} />
@@ -472,41 +519,45 @@ export default function IssueDetailScreen({ route, navigation }) {
             value={statusNote}
             onChangeText={setStatusNote}
             placeholder="Optional note (e.g., Fixed the pothole today)"
+            placeholderTextColor={colors.textTertiary}
             multiline
-            style={{
-              marginTop: 8,
-              borderWidth: 1,
-              borderColor: "#D0D7DE",
-              borderRadius: 8,
-              padding: 10,
-              minHeight: 80,
-              textAlignVertical: "top",
-              backgroundColor: "#FFFFFF"
-            }}
+            style={[base, { marginTop: 10, minHeight: 80, textAlignVertical: "top" }]}
           />
 
           <Pressable
             onPress={onSaveStatus}
+            disabled={savingStatus || nextAllowedStatuses.length === 0}
             style={{
-              marginTop: 10,
-              backgroundColor: "#1A7F37",
-              borderRadius: 8,
-              padding: 10,
+              marginTop: 12,
+              backgroundColor: colors.accent,
+              borderRadius: 10,
+              paddingVertical: 13,
+              alignItems: "center",
               opacity: savingStatus || nextAllowedStatuses.length === 0 ? 0.6 : 1
             }}
-            disabled={savingStatus || nextAllowedStatuses.length === 0}
           >
-            <Text style={{ textAlign: "center", color: "#FFFFFF", fontWeight: "700" }}>
+            <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 15 }}>
               {savingStatus ? "Saving..." : "Update Status"}
             </Text>
           </Pressable>
         </View>
       ) : null}
 
+      {/* Assign Authorities */}
       {userRole === "Head" ? (
-        <View style={{ marginTop: 16, borderWidth: 1, borderColor: "#D0D7DE", borderRadius: 10, padding: 10 }}>
-          <Text style={{ fontWeight: "800", marginBottom: 8 }}>Assign Authorities</Text>
-          {authorities.length === 0 ? <Text style={{ color: "#59636E" }}>No active authorities.</Text> : null}
+        <View style={{
+          marginTop: 16,
+          backgroundColor: colors.surface,
+          borderRadius: 16,
+          padding: 16,
+          borderWidth: colors.mode === "dark" ? 1 : 0,
+          borderColor: colors.cardBorder,
+          ...(shadows?.md || {})
+        }}>
+          <Text style={{ fontWeight: "800", fontSize: 16, color: colors.text, marginBottom: 10 }}>Assign Authorities</Text>
+          {authorities.length === 0 ? (
+            <Text style={{ color: colors.textTertiary }}>No active authorities.</Text>
+          ) : null}
 
           {authorities.map((authority) => {
             const selected = selectedAuthorities.includes(authority.id);
@@ -515,16 +566,22 @@ export default function IssueDetailScreen({ route, navigation }) {
                 key={authority.id}
                 onPress={() => toggleAuthority(authority.id)}
                 style={{
-                  borderWidth: 1,
-                  borderColor: selected ? "#0969DA" : "#D0D7DE",
-                  backgroundColor: selected ? "#E7F3FF" : "#FFFFFF",
-                  borderRadius: 8,
-                  padding: 10,
-                  marginBottom: 8
+                  borderWidth: 1.5,
+                  borderColor: selected ? colors.primary : colors.border,
+                  backgroundColor: selected ? colors.primaryLight : colors.surface,
+                  borderRadius: 12,
+                  padding: 12,
+                  marginBottom: 8,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 8
                 }}
               >
-                <Text style={{ fontWeight: "700" }}>{authority.name}</Text>
-                <Text style={{ color: "#59636E" }}>{authority.email}</Text>
+                {selected ? <Text style={{ color: colors.primary, fontWeight: "700" }}>✓</Text> : null}
+                <View>
+                  <Text style={{ fontWeight: "700", color: colors.text }}>{authority.name}</Text>
+                  <Text style={{ color: colors.textSecondary, fontSize: 13 }}>{authority.email}</Text>
+                </View>
               </Pressable>
             );
           })}
@@ -532,63 +589,69 @@ export default function IssueDetailScreen({ route, navigation }) {
           <Pressable
             onPress={onSaveAssignments}
             style={{
-              marginTop: 4,
-              backgroundColor: "#0969DA",
-              borderRadius: 8,
-              padding: 10,
+              marginTop: 6,
+              backgroundColor: colors.primary,
+              borderRadius: 10,
+              paddingVertical: 13,
+              alignItems: "center",
               opacity: savingAssignments ? 0.6 : 1
             }}
           >
-            <Text style={{ textAlign: "center", color: "#FFFFFF", fontWeight: "700" }}>
+            <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 15 }}>
               {savingAssignments ? "Saving..." : "Save Assignment"}
             </Text>
           </Pressable>
         </View>
       ) : null}
 
-      <View style={{ marginTop: 20 }}>
-        <Text style={{ fontSize: 18, fontWeight: "800", marginBottom: 10 }}>Status History</Text>
-        {statusHistory.length === 0 ? <Text style={{ color: "#59636E" }}>No status updates yet.</Text> : null}
-        {statusHistory.map((entry) => (
-          <View key={entry.id} style={{ marginBottom: 10 }}>
-            <Text style={{ color: "#1F2328", fontWeight: "600" }}>
-              {entry.status.replace("_", " ")} by {entry.changedByName}
-            </Text>
-            {entry.note ? <Text style={{ color: "#2F353D" }}>{entry.note}</Text> : null}
-            <Text style={{ color: "#59636E", fontSize: 12 }}>{formatTimestamp(entry.createdAt)}</Text>
+      {/* Status History */}
+      <View style={{ marginTop: 24 }}>
+        <Text style={{ fontSize: 18, fontWeight: "800", color: colors.text, marginBottom: 12 }}>Status History</Text>
+        {statusHistory.length === 0 ? (
+          <Text style={{ color: colors.textTertiary }}>No status updates yet.</Text>
+        ) : null}
+        {statusHistory.map((entry, index) => (
+          <View key={entry.id} style={{ flexDirection: "row", marginBottom: 4 }}>
+            <View style={{ alignItems: "center", marginRight: 12, width: 16 }}>
+              <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary, marginTop: 5 }} />
+              {index < statusHistory.length - 1 ? (
+                <View style={{ width: 2, flex: 1, backgroundColor: colors.border, marginTop: 2 }} />
+              ) : null}
+            </View>
+            <View style={{ flex: 1, paddingBottom: 14 }}>
+              <Text style={{ fontWeight: "700", color: colors.text, fontSize: 14 }}>
+                {entry.status.replace("_", " ")} by {entry.changedByName}
+              </Text>
+              {entry.note ? <Text style={{ color: colors.textSecondary, fontSize: 14, marginTop: 2 }}>{entry.note}</Text> : null}
+              <Text style={{ color: colors.textTertiary, fontSize: 12, marginTop: 2 }}>{formatTimestamp(entry.createdAt)}</Text>
+            </View>
           </View>
         ))}
       </View>
 
-      <View style={{ marginTop: 20 }}>
-        <Text style={{ fontSize: 18, fontWeight: "800", marginBottom: 10 }}>Comments</Text>
+      {/* Comments */}
+      <View style={{ marginTop: 24 }}>
+        <Text style={{ fontSize: 18, fontWeight: "800", color: colors.text, marginBottom: 12 }}>Comments</Text>
 
-        <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
+        <View style={{ flexDirection: "row", gap: 10, marginBottom: 16 }}>
           <TextInput
             value={commentText}
             onChangeText={setCommentText}
-            placeholder="Add a comment"
-            style={{
-              flex: 1,
-              borderWidth: 1,
-              borderColor: "#D0D7DE",
-              borderRadius: 8,
-              paddingHorizontal: 10,
-              paddingVertical: 8,
-              backgroundColor: "#FFFFFF"
-            }}
+            placeholder="Add a comment..."
+            placeholderTextColor={colors.textTertiary}
+            style={[base, { flex: 1 }]}
           />
           <Pressable
             onPress={onSendComment}
             style={{
-              borderRadius: 8,
-              paddingHorizontal: 14,
+              borderRadius: 12,
+              paddingHorizontal: 18,
               justifyContent: "center",
-              backgroundColor: "#0969DA",
+              backgroundColor: colors.primary,
               opacity: sendingComment ? 0.6 : 1
             }}
           >
-            <Text style={{ color: "#FFFFFF", fontWeight: "700" }}>Send</Text>
+            <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 14 }}>Send</Text>
           </Pressable>
         </View>
 
@@ -597,54 +660,65 @@ export default function IssueDetailScreen({ route, navigation }) {
         ))}
       </View>
 
-      <View style={{ marginTop: 20 }}>
-        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-          <Text style={{ fontSize: 18, fontWeight: "800" }}>Progress Updates</Text>
+      {/* Progress Updates */}
+      <View style={{ marginTop: 24 }}>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <Text style={{ fontSize: 18, fontWeight: "800", color: colors.text }}>Progress Updates</Text>
           {canAddProgress ? (
             <Pressable onPress={() => setAddingProgress((prev) => !prev)}>
-              <Text style={{ color: "#0969DA", fontWeight: "700" }}>
-                {addingProgress ? "Cancel" : "Add Update"}
+              <Text style={{ color: colors.primary, fontWeight: "700", fontSize: 14 }}>
+                {addingProgress ? "Cancel" : "+ Add Update"}
               </Text>
             </Pressable>
           ) : null}
         </View>
 
         {addingProgress ? (
-          <View style={{ marginTop: 10, borderWidth: 1, borderColor: "#D0D7DE", borderRadius: 10, padding: 10 }}>
+          <View style={{
+            backgroundColor: colors.surface,
+            borderRadius: 16,
+            padding: 16,
+            marginBottom: 14,
+            borderWidth: colors.mode === "dark" ? 1 : 0,
+            borderColor: colors.cardBorder,
+            ...(shadows?.md || {})
+          }}>
             <TextInput
               value={progressText}
               onChangeText={setProgressText}
               placeholder="Describe progress (min 10 chars)"
+              placeholderTextColor={colors.textTertiary}
               maxLength={2000}
               multiline
-              style={{
-                borderWidth: 1,
-                borderColor: "#D0D7DE",
-                borderRadius: 8,
-                padding: 10,
-                minHeight: 90,
-                textAlignVertical: "top",
-                backgroundColor: "#FFFFFF"
-              }}
+              style={[base, { minHeight: 90, textAlignVertical: "top" }]}
             />
 
             <Pressable
               onPress={pickProgressImages}
-              style={{ borderWidth: 1, borderColor: "#D0D7DE", borderRadius: 8, padding: 10, marginTop: 8 }}
+              style={{
+                borderWidth: 1.5,
+                borderColor: colors.border,
+                borderRadius: 10,
+                paddingVertical: 11,
+                marginTop: 10,
+                backgroundColor: colors.surfaceAlt
+              }}
             >
-              <Text style={{ textAlign: "center", fontWeight: "600" }}>Attach Images (max 2)</Text>
+              <Text style={{ textAlign: "center", fontWeight: "600", color: colors.primary, fontSize: 14 }}>
+                📷 Attach Images (max 2)
+              </Text>
             </Pressable>
 
             {progressImages.length > 0 ? (
-              <ScrollView horizontal style={{ marginTop: 8 }} showsHorizontalScrollIndicator={false}>
+              <ScrollView horizontal style={{ marginTop: 10 }} showsHorizontalScrollIndicator={false}>
                 {progressImages.map((asset, index) => (
-                  <View key={`${asset.uri}-${index}`} style={{ marginRight: 8 }}>
+                  <View key={`${asset.uri}-${index}`} style={{ marginRight: 10 }}>
                     <Image
                       source={{ uri: asset.uri }}
-                      style={{ width: 90, height: 90, borderRadius: 8, backgroundColor: "#EEF2F6" }}
+                      style={{ width: 90, height: 90, borderRadius: 10, backgroundColor: colors.surfaceAlt }}
                     />
                     <Pressable onPress={() => setProgressImages((prev) => prev.filter((_, i) => i !== index))}>
-                      <Text style={{ color: "#CF222E", textAlign: "center", marginTop: 4 }}>Remove</Text>
+                      <Text style={{ color: colors.danger, textAlign: "center", marginTop: 4, fontSize: 13, fontWeight: "600" }}>Remove</Text>
                     </Pressable>
                   </View>
                 ))}
@@ -654,39 +728,48 @@ export default function IssueDetailScreen({ route, navigation }) {
             <Pressable
               onPress={onSaveProgress}
               style={{
-                marginTop: 10,
-                backgroundColor: "#1A7F37",
-                borderRadius: 8,
-                padding: 10,
+                marginTop: 12,
+                backgroundColor: colors.accent,
+                borderRadius: 10,
+                paddingVertical: 13,
+                alignItems: "center",
                 opacity: savingProgress ? 0.6 : 1
               }}
             >
-              <Text style={{ textAlign: "center", color: "#FFFFFF", fontWeight: "700" }}>
-                {savingProgress ? "Saving..." : "Submit Progress Update"}
+              <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 15 }}>
+                {savingProgress ? "Saving..." : "Submit Progress"}
               </Text>
             </Pressable>
           </View>
         ) : null}
 
         {progressUpdates.length === 0 ? (
-          <Text style={{ color: "#59636E", marginTop: 10 }}>No progress updates yet.</Text>
+          <Text style={{ color: colors.textTertiary }}>No progress updates yet.</Text>
         ) : null}
 
         {progressUpdates.map((entry, index) => (
-          <View key={entry.id} style={{ marginTop: 12, flexDirection: "row" }}>
-            <View style={{ alignItems: "center", marginRight: 10 }}>
-              <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: "#0969DA", marginTop: 6 }} />
+          <View key={entry.id} style={{ flexDirection: "row", marginBottom: 4 }}>
+            <View style={{ alignItems: "center", marginRight: 12, width: 16 }}>
+              <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: colors.accent, marginTop: 5 }} />
               {index < progressUpdates.length - 1 ? (
-                <View style={{ width: 2, flex: 1, backgroundColor: "#D0D7DE", marginTop: 2 }} />
+                <View style={{ width: 2, flex: 1, backgroundColor: colors.border, marginTop: 2 }} />
               ) : null}
             </View>
-
-            <View style={{ flex: 1, borderWidth: 1, borderColor: "#D0D7DE", borderRadius: 10, padding: 10 }}>
-              <Text style={{ fontWeight: "700", color: "#1F2328" }}>
-                {entry.authorityName} • {entry.status?.replace("_", " ")}
+            <View style={{
+              flex: 1,
+              backgroundColor: colors.surface,
+              borderRadius: 14,
+              padding: 14,
+              marginBottom: 8,
+              borderWidth: colors.mode === "dark" ? 1 : 0,
+              borderColor: colors.cardBorder,
+              ...(shadows?.sm || {})
+            }}>
+              <Text style={{ fontWeight: "700", color: colors.text, fontSize: 14 }}>
+                {entry.authorityName} · {entry.status?.replace("_", " ")}
               </Text>
-              <Text style={{ color: "#59636E", fontSize: 12, marginTop: 2 }}>{formatTimestamp(entry.createdAt)}</Text>
-              <Text style={{ color: "#1F2328", marginTop: 8 }}>{entry.text}</Text>
+              <Text style={{ color: colors.textTertiary, fontSize: 12, marginTop: 2 }}>{formatTimestamp(entry.createdAt)}</Text>
+              <Text style={{ color: colors.text, marginTop: 8, fontSize: 14, lineHeight: 20 }}>{entry.text}</Text>
               <ImageCarousel images={entry.images || []} />
             </View>
           </View>
@@ -695,4 +778,3 @@ export default function IssueDetailScreen({ route, navigation }) {
     </ScrollView>
   );
 }
-

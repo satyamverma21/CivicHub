@@ -1,12 +1,12 @@
 import React, { useState } from "react";
-import { Alert, Pressable, Text, View } from "react-native";
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from "react-native";
 import AuthInput from "../components/AuthInput";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 
 export default function LoginScreen({ navigation }) {
   const { login, showErrorToast } = useAuth();
-  const { colors } = useTheme();
+  const { colors, shadows } = useTheme();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -29,38 +29,94 @@ export default function LoginScreen({ navigation }) {
   };
 
   return (
-    <View style={{ flex: 1, padding: 16, justifyContent: "center", backgroundColor: colors.background }}>
-      <Text style={{ fontSize: 22, marginBottom: 16, color: colors.text, fontWeight: "700" }}>Login</Text>
-      <AuthInput value={email} onChangeText={setEmail} placeholder="Email" />
-      <AuthInput
-        value={password}
-        onChangeText={setPassword}
-        placeholder="Password"
-        secureTextEntry
-      />
-
-      <Pressable
-        onPress={handleLogin}
-        disabled={isSubmitting}
-        style={{
-          borderWidth: 1,
-          borderColor: colors.primary,
-          backgroundColor: colors.primary,
-          padding: 10,
-          borderRadius: 6,
-          marginBottom: 12,
-          opacity: isSubmitting ? 0.7 : 1
-        }}
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: colors.background }}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <ScrollView
+        contentContainerStyle={{ flexGrow: 1, justifyContent: "center", padding: 24 }}
+        keyboardShouldPersistTaps="handled"
       >
-        <Text style={{ color: "#fff", textAlign: "center", fontWeight: "700" }}>{isSubmitting ? "Logging in..." : "Login"}</Text>
-      </Pressable>
+        {/* Logo */}
+        <View style={{ alignItems: "center", marginBottom: 36 }}>
+          <View style={{
+            width: 64,
+            height: 64,
+            borderRadius: 20,
+            backgroundColor: colors.primary,
+            alignItems: "center",
+            justifyContent: "center",
+            marginBottom: 16
+          }}>
+            <Text style={{ fontSize: 28, fontWeight: "800", color: "#FFFFFF" }}>D</Text>
+          </View>
+          <Text style={{
+            fontSize: 28,
+            fontWeight: "800",
+            color: colors.text,
+            letterSpacing: -0.5
+          }}>
+            Welcome Back
+          </Text>
+          <Text style={{ color: colors.textSecondary, marginTop: 4, fontSize: 15 }}>
+            Sign in to your community
+          </Text>
+        </View>
 
-      <Pressable onPress={() => navigation.navigate("HeadSignup")} style={{ marginBottom: 10 }}>
-        <Text style={{ color: colors.primary }}>Create Head Account</Text>
-      </Pressable>
-      <Pressable onPress={() => navigation.navigate("UserSignup")}>
-        <Text style={{ color: colors.primary }}>Create User/Authority Account</Text>
-      </Pressable>
-    </View>
+        {/* Form Card */}
+        <View style={{
+          backgroundColor: colors.surface,
+          borderRadius: 20,
+          padding: 24,
+          borderWidth: colors.mode === "dark" ? 1 : 0,
+          borderColor: colors.cardBorder,
+          ...(shadows?.lg || {})
+        }}>
+          <AuthInput
+            value={email}
+            onChangeText={setEmail}
+            placeholder="Enter your email"
+            label="Email"
+          />
+          <AuthInput
+            value={password}
+            onChangeText={setPassword}
+            placeholder="Enter your password"
+            label="Password"
+            secureTextEntry
+          />
+
+          <Pressable
+            onPress={handleLogin}
+            disabled={isSubmitting}
+            style={{
+              backgroundColor: colors.primary,
+              borderRadius: 12,
+              paddingVertical: 15,
+              marginTop: 8,
+              opacity: isSubmitting ? 0.7 : 1
+            }}
+          >
+            <Text style={{ color: "#FFFFFF", textAlign: "center", fontWeight: "700", fontSize: 16 }}>
+              {isSubmitting ? "Signing in..." : "Sign In"}
+            </Text>
+          </Pressable>
+        </View>
+
+        {/* Footer links */}
+        <View style={{ alignItems: "center", marginTop: 28, gap: 14 }}>
+          <Pressable onPress={() => navigation.navigate("HeadSignup")}>
+            <Text style={{ color: colors.primary, fontWeight: "600", fontSize: 15 }}>
+              Create Organization Account
+            </Text>
+          </Pressable>
+          <Pressable onPress={() => navigation.navigate("UserSignup")}>
+            <Text style={{ color: colors.textSecondary, fontWeight: "500", fontSize: 14 }}>
+              Join as User or Authority
+            </Text>
+          </Pressable>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
