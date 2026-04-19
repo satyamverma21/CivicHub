@@ -2,7 +2,6 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const TOKEN_KEY = "auth_token_v1";
 export const API_BASE_URL = "http://localhost:4000";
-console.log("base url ",API_BASE_URL)
 
 export async function getAuthToken() {
   return AsyncStorage.getItem(TOKEN_KEY);

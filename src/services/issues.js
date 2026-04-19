@@ -13,7 +13,6 @@ import {
   readCachedIssue,
   readQueuedActions
 } from "./offlineStore";
-import { assertRateLimit, incrementRateLimit } from "./rateLimit";
 import { withRetry, withTimeout } from "./retry";
 import { sanitizeTextInput } from "./sanitization";
 
@@ -67,11 +66,9 @@ async function uploadImages(assets = []) {
 
 export async function createIssue(title, description, images = [], category, currentUser, channelId, options = {}) {
   if (!currentUser?.uid || !channelId) throw new Error("Missing user or channel.");
-  await assertRateLimit("issue", currentUser.uid);
 
   if (!(await isOnline())) {
     await enqueueAction({ type: "createIssue", payload: { title, description, images, category, currentUser, channelId, options } });
-    await incrementRateLimit("issue", currentUser.uid);
     return `queued-${Date.now()}`;
   }
 
@@ -85,7 +82,6 @@ export async function createIssue(title, description, images = [], category, cur
   };
 
   const result = await apiPost("/api/issues", payload);
-  await incrementRateLimit("issue", currentUser.uid);
   return result.issueId;
 }
 
@@ -108,8 +104,20 @@ export async function getActiveAuthorities(channelId) {
   return items.map((i) => ({ id: i.id || i.uid, ...i }));
 }
 
+export async function getAuthorityTagAssignments(channelId) {
+  return apiGet(`/api/authorities/tag-assignments?channelId=${encodeURIComponent(channelId || "")}`);
+}
+
+export async function updateAuthorityTags(authorityId, tags = []) {
+  return apiPatch(`/api/authorities/${authorityId}/tags`, { tags });
+}
+
 export async function getAuthorityDashboard(authorityId, channelId) {
   return apiGet(`/api/authority/dashboard?authorityId=${encodeURIComponent(authorityId)}&channelId=${encodeURIComponent(channelId)}`);
+}
+
+export async function getAuthorityPersonalizedFeed(channelId, status = "all") {
+  return apiGet(`/api/authority/personalized-feed?channelId=${encodeURIComponent(channelId || "")}&status=${encodeURIComponent(status)}`);
 }
 
 export async function getIssuesFeed(channelId, pageSize = 10, lastDoc = null, sortBy = "recent", status = "all") {
@@ -162,16 +170,13 @@ export async function likeIssue(issueId, userId) {
 export async function addComment(issueId, userId, text) {
   const nextText = normalizeText(text);
   if (nextText.length < 1) throw new Error("Comment cannot be empty.");
-  await assertRateLimit("comment", userId);
 
   if (!(await isOnline())) {
     await enqueueAction({ type: "addComment", payload: { issueId, userId, text: nextText } });
-    await incrementRateLimit("comment", userId);
     return;
   }
 
   await apiPost(`/api/issues/${issueId}/comments`, { text: nextText });
-  await incrementRateLimit("comment", userId);
 }
 
 export async function getComments(issueId) {
@@ -197,6 +202,11 @@ export async function addProgressUpdate(issueId, authorityId, text, images = [])
 export async function getProgressUpdates(issueId) {
   const result = await apiGet(`/api/issues/${issueId}/progress`);
   return result.updates || [];
+}
+
+export async function markIssueNotificationsRead(issueId) {
+  if (!issueId) return;
+  await apiPatch(`/api/notifications/read-by-issue/${issueId}`, {});
 }
 
 export async function deleteIssue(issueId) {

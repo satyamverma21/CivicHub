@@ -1,12 +1,13 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { Alert, Platform, ToastAndroid } from "react-native";
 import { apiDelete, apiGet, apiPatch, apiPost, setAuthToken, getAuthToken } from "../services/api";
 import { syncOfflineActions } from "../services/issues";
 import { registerForPushNotifications } from "../services/notifications";
+import { useToast } from "./ToastContext";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
+  const { showErrorToast: showGlobalErrorToast, showSuccessToast } = useToast();
   const [currentUser, setCurrentUser] = useState(null);
   const [channelId, setChannelId] = useState(null);
   const [userRole, setUserRole] = useState(null);
@@ -158,12 +159,7 @@ export function AuthProvider({ children }) {
   }
 
   function showErrorToast(error) {
-    const message = error?.message || "Something went wrong.";
-    if (Platform.OS === "android") {
-      ToastAndroid.show(message, ToastAndroid.SHORT);
-      return;
-    }
-    Alert.alert("Error", message);
+    showGlobalErrorToast(error);
   }
 
   const value = useMemo(
@@ -190,9 +186,10 @@ export function AuthProvider({ children }) {
       updateNotificationSettings,
       deleteMyAccount,
       getMyProfileStats,
-      showErrorToast
+      showErrorToast,
+      showSuccessToast
     }),
-    [currentUser, channelId, userRole, isLoading]
+    [currentUser, channelId, userRole, isLoading, showSuccessToast, showGlobalErrorToast]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

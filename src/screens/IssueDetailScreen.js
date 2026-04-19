@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Platform,
   Pressable,
   ScrollView,
   Share,
@@ -27,6 +28,7 @@ import {
   getActiveAuthorities,
   getComments,
   getIssueById,
+  markIssueNotificationsRead,
   getProgressUpdates,
   getStatusHistory,
   likeIssue,
@@ -47,7 +49,7 @@ const STATUS_TRANSITIONS = {
 
 export default function IssueDetailScreen({ route, navigation }) {
   const { issueId } = route.params;
-  const { currentUser, userRole, channelId, showErrorToast } = useAuth();
+  const { currentUser, userRole, channelId, showErrorToast, showSuccessToast } = useAuth();
   const { colors, shadows } = useTheme();
   const [issue, setIssue] = useState(null);
   const [comments, setComments] = useState([]);
@@ -75,6 +77,7 @@ export default function IssueDetailScreen({ route, navigation }) {
   const [authorities, setAuthorities] = useState([]);
   const [selectedAuthorities, setSelectedAuthorities] = useState([]);
   const [savingAssignments, setSavingAssignments] = useState(false);
+  const [deletingIssue, setDeletingIssue] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -113,6 +116,10 @@ export default function IssueDetailScreen({ route, navigation }) {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    markIssueNotificationsRead(issueId).catch(showErrorToast);
+  }, [issueId, showErrorToast]);
 
   const isAssignedAuthority = useMemo(
     () => Array.isArray(issue?.assignedAuthorities) && issue.assignedAuthorities.includes(currentUser?.uid),
@@ -205,20 +212,35 @@ export default function IssueDetailScreen({ route, navigation }) {
     }
   };
 
+  const performDelete = async () => {
+    if (deletingIssue) return;
+    setDeletingIssue(true);
+    try {
+      await deleteIssue(issueId);
+      showSuccessToast("Complaint deleted.");
+      navigation.goBack();
+    } catch (error) {
+      showErrorToast(error);
+    } finally {
+      setDeletingIssue(false);
+    }
+  };
+
   const onDelete = () => {
+    if (Platform.OS === "web") {
+      const ok = typeof globalThis?.confirm === "function"
+        ? globalThis.confirm("Are you sure you want to delete this issue?")
+        : true;
+      if (!ok) return;
+      performDelete();
+      return;
+    }
     Alert.alert("Delete Issue", "Are you sure you want to delete this issue?", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",
         style: "destructive",
-        onPress: async () => {
-          try {
-            await deleteIssue(issueId, currentUser.uid);
-            navigation.goBack();
-          } catch (error) {
-            showErrorToast(error);
-          }
-        }
+        onPress: performDelete
       }
     ]);
   };
@@ -382,16 +404,20 @@ export default function IssueDetailScreen({ route, navigation }) {
               </Pressable>
               <Pressable
                 onPress={onDelete}
+                disabled={deletingIssue}
                 style={{
                   flex: 1,
                   borderWidth: 1.5,
                   borderColor: colors.danger,
                   borderRadius: 12,
                   paddingVertical: 12,
-                  alignItems: "center"
+                  alignItems: "center",
+                  opacity: deletingIssue ? 0.6 : 1
                 }}
               >
-                <Text style={{ color: colors.danger, fontWeight: "700", fontSize: 14 }}>Delete</Text>
+                <Text style={{ color: colors.danger, fontWeight: "700", fontSize: 14 }}>
+                  {deletingIssue ? "Deleting..." : "Delete"}
+                </Text>
               </Pressable>
             </View>
           ) : null}

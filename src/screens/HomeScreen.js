@@ -156,6 +156,39 @@ export default function HomeScreen({ navigation }) {
             Management Dashboards
           </Text>
           <View style={{ gap: 10 }}>
+            {userRole === "Authority" ? (
+              <>
+                <Pressable
+                  onPress={() => navigation.navigate("Feed")}
+                  style={{
+                    backgroundColor: colors.surface,
+                    borderRadius: 16,
+                    padding: 16,
+                    borderWidth: colors.mode === "dark" ? 1 : 0,
+                    borderColor: colors.cardBorder,
+                    ...(shadows?.sm || {})
+                  }}
+                >
+                  <Text style={{ fontWeight: "700", color: colors.text, fontSize: 15 }}>All Issues Feed</Text>
+                  <Text style={{ color: colors.textTertiary, fontSize: 13 }}>View all channel complaints</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => navigation.navigate("AuthorityPersonalizedFeed")}
+                  style={{
+                    backgroundColor: colors.surface,
+                    borderRadius: 16,
+                    padding: 16,
+                    borderWidth: colors.mode === "dark" ? 1 : 0,
+                    borderColor: colors.cardBorder,
+                    ...(shadows?.sm || {})
+                  }}
+                >
+                  <Text style={{ fontWeight: "700", color: colors.text, fontSize: 15 }}>Personalized Feed</Text>
+                  <Text style={{ color: colors.textTertiary, fontSize: 13 }}>Assigned + department-tagged complaints</Text>
+                </Pressable>
+              </>
+            ) : null}
+
             <Pressable
               onPress={() => navigation.navigate("AuthorityDashboard")}
               style={{
@@ -188,6 +221,23 @@ export default function HomeScreen({ navigation }) {
               </Pressable>
             ) : null}
 
+            {["Head", "SuperAdmin"].includes(userRole || "") ? (
+              <Pressable
+                onPress={() => navigation.navigate("AuthorityTagManager")}
+                style={{
+                  backgroundColor: colors.surface,
+                  borderRadius: 16,
+                  padding: 16,
+                  borderWidth: colors.mode === "dark" ? 1 : 0,
+                  borderColor: colors.cardBorder,
+                  ...(shadows?.sm || {})
+                }}
+              >
+                <Text style={{ fontWeight: "700", color: colors.text, fontSize: 15 }}>Authority Department Tags</Text>
+                <Text style={{ color: colors.textTertiary, fontSize: 13 }}>Assign one or more department tags per authority</Text>
+              </Pressable>
+            ) : null}
+
             {userRole === "SuperAdmin" ? (
               <Pressable
                 onPress={() => navigation.navigate("SuperAdminDashboard")}
@@ -209,6 +259,23 @@ export default function HomeScreen({ navigation }) {
       ) : null}
 
       <View style={{ gap: 10, marginTop: 8 }}>
+        {userRole === "User" ? (
+          <Pressable
+            onPress={() => navigation.navigate("MyIssues")}
+            style={{
+              backgroundColor: colors.surface,
+              borderRadius: 16,
+              padding: 16,
+              borderWidth: colors.mode === "dark" ? 1 : 0,
+              borderColor: colors.cardBorder,
+              ...(shadows?.sm || {})
+            }}
+          >
+            <Text style={{ fontWeight: "700", color: colors.text, fontSize: 15 }}>My Issues</Text>
+            <Text style={{ color: colors.textTertiary, fontSize: 13 }}>View your complaints by status</Text>
+          </Pressable>
+        ) : null}
+
         <Pressable
           onPress={() => navigation.navigate("Profile")}
           style={{

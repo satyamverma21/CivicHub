@@ -48,9 +48,47 @@ const j = (v, fallback) => {
 const s = (v) => String(v || "").replace(/<script.*?>.*?<\/script>/gi, "").replace(/[<>]/g, "").trim();
 const now = () => Date.now();
 const id = (p = "id") => `${p}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+const ISSUE_CATEGORIES = [
+  "Academic",
+  "Hostel",
+  "Canteen",
+  "Faculty",
+  "Infrastructure",
+  "Administration",
+  "Library",
+  "Transport",
+  "Examination",
+  "Other"
+];
+const ISSUE_CATEGORY_MAP = ISSUE_CATEGORIES.reduce((acc, category) => {
+  acc[category.toLowerCase()] = category;
+  return acc;
+}, {});
 
 function trimTo(value, max = 400) {
   return s(String(value || "")).slice(0, max);
+}
+
+function normalizeIssueCategory(value) {
+  const normalized = s(value || "").toLowerCase();
+  return ISSUE_CATEGORY_MAP[normalized] || "Other";
+}
+
+function normalizeAuthorityTags(input) {
+  const source = Array.isArray(input) ? input : [];
+  const unique = [];
+  for (const entry of source) {
+    const normalized = normalizeIssueCategory(entry);
+    if (!unique.includes(normalized)) unique.push(normalized);
+  }
+  return unique;
+}
+
+function authorityMatchesIssue(row, authorityId, authorityTags, issueCategory) {
+  const assigned = j(row.assigned_authorities_json, []);
+  if (assigned.includes(authorityId)) return true;
+  if (issueCategory === "Other") return true;
+  return authorityTags.includes(issueCategory);
 }
 
 function parseAiTextList(raw) {
@@ -127,7 +165,6 @@ async function generateAiSolutions(issue) {
     timeoutMs: AI_TIMEOUT_MS
   });
   const outputText = String(aiResponse?.text || "");
-  console.log("debug, ", outputText)
 
   const entries = parseAiTextList(outputText);
   if (entries.length === 0) {
@@ -152,6 +189,7 @@ function toUser(row) {
     status: row.status,
     avatar: row.avatar || "",
     bio: row.bio || "",
+    authorityTags: j(row.authority_tags_json, []),
     privacy: j(row.privacy_json, { showFullName: true, anonymousPosts: false }),
     notificationSettings: j(row.notification_settings_json, {
       all: true,
@@ -242,15 +280,28 @@ async function notify(db, { userId, issueId = null, title, body, type, screen = 
   );
 }
 
-async function rateLimit(db, userId, action, max) {
+async function assertRateLimit(db, userId, action, max) {
+  const day = new Date().toISOString().slice(0, 10);
+  const key = `${userId}_${action}_${day}`;
+  const row = await db.get("SELECT * FROM daily_limits WHERE id = ?", key);
+  if (!row) return;
+  if (row.count >= max) throw new Error(`Rate limit reached: max ${max} ${action} per day.`);
+}
+
+async function consumeRateLimit(db, userId, action) {
   const day = new Date().toISOString().slice(0, 10);
   const key = `${userId}_${action}_${day}`;
   const row = await db.get("SELECT * FROM daily_limits WHERE id = ?", key);
   if (!row) {
-    await db.run("INSERT INTO daily_limits (id, user_id, action, day_key, count) VALUES (?, ?, ?, ?, 1)", key, userId, action, day);
+    await db.run(
+      "INSERT INTO daily_limits (id, user_id, action, day_key, count) VALUES (?, ?, ?, ?, 1)",
+      key,
+      userId,
+      action,
+      day
+    );
     return;
   }
-  if (row.count >= max) throw new Error(`Rate limit reached: max ${max} ${action} per day.`);
   await db.run("UPDATE daily_limits SET count = count + 1 WHERE id = ?", key);
 }
 
@@ -264,6 +315,38 @@ async function ensureSuperAdmin(db) {
      VALUES (?, ?, ?, ?, ?, 'active', '', '', ?, ?)`,
     id("usr"), SUPER_ADMIN_EMAIL, hash, "Super Admin", "SuperAdmin", t, t
   );
+}
+
+async function deleteIssueCascade(db, issueId) {
+  await db.run("DELETE FROM comments WHERE issue_id = ?", issueId);
+  await db.run("DELETE FROM progress_updates WHERE issue_id = ?", issueId);
+  await db.run("DELETE FROM notifications WHERE issue_id = ?", issueId);
+  await db.run("DELETE FROM issues WHERE id = ?", issueId);
+}
+
+async function resolveAuthorityRequest(db, requestId, actorId, decision, expectedChannelId = null) {
+  const request = await db.get("SELECT * FROM channel_requests WHERE id = ?", requestId);
+  if (!request) return null;
+  if (expectedChannelId && request.channel_id !== expectedChannelId) return null;
+
+  if (decision === "approve") {
+    await db.run(
+      "UPDATE channel_requests SET status = 'approved', approved_by = ?, approved_at = ? WHERE id = ?",
+      actorId,
+      now(),
+      request.id
+    );
+    await db.run("UPDATE users SET status = 'active', updated_at = ? WHERE id = ?", now(), request.user_id);
+    return request;
+  }
+
+  if (decision === "reject") {
+    await db.run("DELETE FROM channel_requests WHERE id = ?", request.id);
+    await db.run("UPDATE users SET status = 'rejected', channel_id = NULL, updated_at = ? WHERE id = ?", now(), request.user_id);
+    return request;
+  }
+
+  throw new Error(`Unsupported authority request decision: ${decision}`);
 }
 
 app.get("/api/health", (req, res) => res.json({ ok: true, ts: now() }));
@@ -432,6 +515,43 @@ app.get("/api/authorities/active", auth, async (req, res) => {
   res.json(rows.map((r) => ({ id: r.id, ...toUser(r) })));
 });
 
+app.get("/api/authorities/tag-assignments", auth, role("Head", "SuperAdmin"), async (req, res) => {
+  const db = await initDb();
+  const channelId = s(req.query.channelId || req.user.channelId);
+  const rows = channelId
+    ? await db.all(
+      "SELECT * FROM users WHERE channel_id = ? AND role = 'Authority' AND status = 'active' ORDER BY name ASC",
+      channelId
+    )
+    : await db.all("SELECT * FROM users WHERE role = 'Authority' AND status = 'active' ORDER BY name ASC");
+  res.json(rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    email: row.email,
+    channelId: row.channel_id,
+    authorityTags: normalizeAuthorityTags(j(row.authority_tags_json, []))
+  })));
+});
+
+app.patch("/api/authorities/:id/tags", auth, role("Head", "SuperAdmin"), async (req, res) => {
+  const db = await initDb();
+  const authority = await db.get("SELECT * FROM users WHERE id = ? AND role = 'Authority'", req.params.id);
+  if (!authority) return res.status(404).json({ error: "Authority not found" });
+  if (req.user.role === "Head" && authority.channel_id !== req.user.channelId) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+
+  const tags = normalizeAuthorityTags(req.body.tags);
+  await db.run(
+    "UPDATE users SET authority_tags_json = ?, updated_at = ? WHERE id = ?",
+    JSON.stringify(tags),
+    now(),
+    authority.id
+  );
+  const updated = await db.get("SELECT * FROM users WHERE id = ?", authority.id);
+  res.json({ authority: { id: updated.id, ...toUser(updated) } });
+});
+
 app.post("/api/upload/images", auth, upload.array("images", 5), async (req, res) => {
   const urls = (req.files || []).map((file) => `/uploads/images/${path.basename(file.path)}`);
   res.json({ urls });
@@ -442,19 +562,30 @@ app.post("/api/issues", auth, async (req, res) => {
   const user = await db.get("SELECT * FROM users WHERE id = ?", req.user.uid);
   if (!user) return res.status(404).json({ error: "User not found" });
 
-  try { await rateLimit(db, user.id, "issue", 5); } catch (error) { return res.status(429).json({ error: error.message }); }
-
   const title = s(req.body.title);
   const description = s(req.body.description);
   if (title.length < 5 || description.length < 10) return res.status(400).json({ error: "Invalid issue input" });
+  try { await assertRateLimit(db, user.id, "issue", 10); } catch (error) { return res.status(429).json({ error: error.message }); }
 
   const issueId = id("iss");
   const t = now();
-  const category = req.body.category ? s(req.body.category) : null;
+  const category = normalizeIssueCategory(req.body.category);
   const images = Array.isArray(req.body.images) ? req.body.images : [];
   const manual = Array.isArray(req.body.manualAssignedAuthorities) ? req.body.manualAssignedAuthorities : [];
-  const allAuthorities = await db.all("SELECT id FROM users WHERE channel_id = ? AND role = 'Authority' AND status = 'active'", user.channel_id);
-  const assigned = manual.length ? manual : allAuthorities.map((a) => a.id);
+  const allAuthorities = await db.all(
+    "SELECT id, authority_tags_json FROM users WHERE channel_id = ? AND role = 'Authority' AND status = 'active'",
+    user.channel_id
+  );
+  const matchedByTag = allAuthorities
+    .filter((row) => {
+      if (category === "Other") return true;
+      const tags = normalizeAuthorityTags(j(row.authority_tags_json, []));
+      return tags.includes(category);
+    })
+    .map((row) => row.id);
+  const assigned = category === "Other"
+    ? allAuthorities.map((row) => row.id)
+    : (manual.length ? [...new Set(manual)] : matchedByTag);
   const history = [{ status: "open", changedBy: user.name, changedById: user.id, changedAt: t, note: "" }];
 
   await db.run(
@@ -487,6 +618,7 @@ app.post("/api/issues", auth, async (req, res) => {
     await notify(db, { userId: m.id, issueId, title: "New Issue in Channel", body: `New issue reported: ${title}`, type: "new_issue_channel" });
   }
 
+  await consumeRateLimit(db, user.id, "issue");
   res.json({ issueId });
 });
 
@@ -543,10 +675,7 @@ app.delete("/api/issues/:id", auth, async (req, res) => {
   if (row.author_id !== req.user.uid && !["Head", "SuperAdmin"].includes(req.user.role)) {
     return res.status(403).json({ error: "Forbidden" });
   }
-  await db.run("DELETE FROM comments WHERE issue_id = ?", req.params.id);
-  await db.run("DELETE FROM progress_updates WHERE issue_id = ?", req.params.id);
-  await db.run("DELETE FROM notifications WHERE issue_id = ?", req.params.id);
-  await db.run("DELETE FROM issues WHERE id = ?", req.params.id);
+  await deleteIssueCascade(db, req.params.id);
   res.json({ ok: true });
 });
 
@@ -565,7 +694,7 @@ app.post("/api/issues/:id/comments", auth, async (req, res) => {
   const db = await initDb();
   const issue = await db.get("SELECT * FROM issues WHERE id = ?", req.params.id);
   if (!issue) return res.status(404).json({ error: "Issue not found" });
-  try { await rateLimit(db, req.user.uid, "comment", 20); } catch (error) { return res.status(429).json({ error: error.message }); }
+  try { await assertRateLimit(db, req.user.uid, "comment", 40); } catch (error) { return res.status(429).json({ error: error.message }); }
 
   const user = await db.get("SELECT * FROM users WHERE id = ?", req.user.uid);
   const text = s(req.body.text);
@@ -585,6 +714,7 @@ app.post("/api/issues/:id/comments", auth, async (req, res) => {
   if (issue.author_id !== user.id) {
     await notify(db, { userId: issue.author_id, issueId: issue.id, title: "New Comment", body: `${user.name} commented on \"${issue.title}\".`, type: "reporter_comment" });
   }
+  await consumeRateLimit(db, req.user.uid, "comment");
   res.json({ ok: true });
 });
 
@@ -692,7 +822,7 @@ app.post("/api/issues/:id/possible-solutions/generate", auth, role("Authority", 
     const existingSolutions = Array.isArray(currentPayload)
       ? currentPayload
       : (Array.isArray(currentPayload?.solutions) ? currentPayload.solutions : []);
-    const preserved = existingSolutions.filter((item) => item && (item.source !== "generated" || Boolean(item.applied)));
+    const preserved = existingSolutions.filter((item) => item && item.source !== "generated");
 
     const generated = aiResult.entries.map((text, index) => ({
       id: id(`sol_ai_${index + 1}`),
@@ -775,15 +905,38 @@ app.get("/api/authority/dashboard", auth, async (req, res) => {
   const db = await initDb();
   const authorityId = s(req.query.authorityId || req.user.uid);
   const channelId = s(req.query.channelId || req.user.channelId);
+  const authority = await db.get("SELECT authority_tags_json FROM users WHERE id = ?", authorityId);
+  const authorityTags = normalizeAuthorityTags(j(authority?.authority_tags_json, []));
   const rows = await db.all("SELECT * FROM issues WHERE channel_id = ? ORDER BY created_at DESC", channelId);
   const grouped = { open: [], in_progress: [], resolved: [], closed: [] };
   rows.forEach((row) => {
-    const assigned = j(row.assigned_authorities_json, []);
-    if (req.user.role === "Authority" && !assigned.includes(authorityId)) return;
+    const category = normalizeIssueCategory(row.category);
+    if (req.user.role === "Authority" && !authorityMatchesIssue(row, authorityId, authorityTags, category)) return;
     const key = ["open", "in_progress", "resolved", "closed"].includes(row.status) ? row.status : "open";
     grouped[key].push(toIssue(row));
   });
   res.json(grouped);
+});
+
+app.get("/api/authority/personalized-feed", auth, role("Authority"), async (req, res) => {
+  const db = await initDb();
+  const authorityId = req.user.uid;
+  const channelId = s(req.query.channelId || req.user.channelId);
+  const status = s(req.query.status || "all");
+  const authority = await db.get("SELECT authority_tags_json FROM users WHERE id = ?", authorityId);
+  const authorityTags = normalizeAuthorityTags(j(authority?.authority_tags_json, []));
+
+  const rows = await db.all("SELECT * FROM issues WHERE channel_id = ? ORDER BY created_at DESC", channelId);
+  const filtered = rows.filter((row) => {
+    const category = normalizeIssueCategory(row.category);
+    if (status !== "all" && row.status !== status) return false;
+    return authorityMatchesIssue(row, authorityId, authorityTags, category);
+  });
+
+  res.json({
+    items: filtered.map(toIssue),
+    authorityTags
+  });
 });
 app.get("/api/head/pending-requests", auth, role("Head"), async (req, res) => {
   const db = await initDb();
@@ -797,20 +950,16 @@ app.get("/api/head/pending-requests", auth, role("Head"), async (req, res) => {
 
 app.post("/api/head/requests/:id/approve", auth, role("Head"), async (req, res) => {
   const db = await initDb();
-  const rq = await db.get("SELECT * FROM channel_requests WHERE id = ?", req.params.id);
-  if (!rq || rq.channel_id !== req.user.channelId) return res.status(404).json({ error: "Request not found" });
-  await db.run("UPDATE channel_requests SET status = 'approved', approved_by = ?, approved_at = ? WHERE id = ?", req.user.uid, now(), rq.id);
-  await db.run("UPDATE users SET status = 'active', updated_at = ? WHERE id = ?", now(), rq.user_id);
-  await notify(db, { userId: rq.user_id, title: "Authority Approved", body: "Your authority account has been approved.", type: "authority_approval", screen: "Home" });
+  const request = await resolveAuthorityRequest(db, req.params.id, req.user.uid, "approve", req.user.channelId);
+  if (!request) return res.status(404).json({ error: "Request not found" });
+  await notify(db, { userId: request.user_id, title: "Authority Approved", body: "Your authority account has been approved.", type: "authority_approval", screen: "Home" });
   res.json({ ok: true });
 });
 
 app.post("/api/head/requests/:id/reject", auth, role("Head"), async (req, res) => {
   const db = await initDb();
-  const rq = await db.get("SELECT * FROM channel_requests WHERE id = ?", req.params.id);
-  if (!rq || rq.channel_id !== req.user.channelId) return res.status(404).json({ error: "Request not found" });
-  await db.run("DELETE FROM channel_requests WHERE id = ?", rq.id);
-  await db.run("UPDATE users SET status = 'rejected', channel_id = NULL, updated_at = ? WHERE id = ?", now(), rq.user_id);
+  const request = await resolveAuthorityRequest(db, req.params.id, req.user.uid, "reject", req.user.channelId);
+  if (!request) return res.status(404).json({ error: "Request not found" });
   res.json({ ok: true });
 });
 
@@ -840,6 +989,16 @@ app.get("/api/notifications", auth, async (req, res) => {
 app.patch("/api/notifications/:id/read", auth, async (req, res) => {
   const db = await initDb();
   await db.run("UPDATE notifications SET read = 1 WHERE id = ? AND user_id = ?", req.params.id, req.user.uid);
+  res.json({ ok: true });
+});
+
+app.patch("/api/notifications/read-by-issue/:issueId", auth, async (req, res) => {
+  const db = await initDb();
+  await db.run(
+    "UPDATE notifications SET read = 1 WHERE user_id = ? AND issue_id = ?",
+    req.user.uid,
+    req.params.issueId
+  );
   res.json({ ok: true });
 });
 
@@ -955,10 +1114,7 @@ app.post("/api/superadmin/issues/:id/status", auth, role("SuperAdmin"), async (r
 
 app.delete("/api/superadmin/issues/:id", auth, role("SuperAdmin"), async (req, res) => {
   const db = await initDb();
-  await db.run("DELETE FROM comments WHERE issue_id = ?", req.params.id);
-  await db.run("DELETE FROM progress_updates WHERE issue_id = ?", req.params.id);
-  await db.run("DELETE FROM notifications WHERE issue_id = ?", req.params.id);
-  await db.run("DELETE FROM issues WHERE id = ?", req.params.id);
+  await deleteIssueCascade(db, req.params.id);
   res.json({ ok: true });
 });
 
@@ -987,19 +1143,15 @@ app.get("/api/superadmin/authority-requests", auth, role("SuperAdmin"), async (r
 
 app.post("/api/superadmin/authority-requests/:id/approve", auth, role("SuperAdmin"), async (req, res) => {
   const db = await initDb();
-  const row = await db.get("SELECT * FROM channel_requests WHERE id = ?", req.params.id);
-  if (!row) return res.status(404).json({ error: "Request not found" });
-  await db.run("UPDATE channel_requests SET status = 'approved', approved_by = ?, approved_at = ? WHERE id = ?", req.user.uid, now(), row.id);
-  await db.run("UPDATE users SET status = 'active', updated_at = ? WHERE id = ?", now(), row.user_id);
+  const request = await resolveAuthorityRequest(db, req.params.id, req.user.uid, "approve");
+  if (!request) return res.status(404).json({ error: "Request not found" });
   res.json({ ok: true });
 });
 
 app.post("/api/superadmin/authority-requests/:id/reject", auth, role("SuperAdmin"), async (req, res) => {
   const db = await initDb();
-  const row = await db.get("SELECT * FROM channel_requests WHERE id = ?", req.params.id);
-  if (!row) return res.status(404).json({ error: "Request not found" });
-  await db.run("DELETE FROM channel_requests WHERE id = ?", row.id);
-  await db.run("UPDATE users SET status = 'rejected', channel_id = NULL, updated_at = ? WHERE id = ?", now(), row.user_id);
+  const request = await resolveAuthorityRequest(db, req.params.id, req.user.uid, "reject");
+  if (!request) return res.status(404).json({ error: "Request not found" });
   res.json({ ok: true });
 });
 

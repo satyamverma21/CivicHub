@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Image,
   Pressable,
   ScrollView,
@@ -17,7 +16,7 @@ import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 
 export default function CreateIssueScreen({ navigation }) {
-  const { currentUser, channelId, showErrorToast } = useAuth();
+  const { currentUser, channelId, showErrorToast, showSuccessToast } = useAuth();
   const { colors, shadows } = useTheme();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -89,19 +88,10 @@ export default function CreateIssueScreen({ navigation }) {
         channelId,
         {}
       );
-      Alert.alert("Success", "Complaint submitted successfully.");
+      showSuccessToast("Complaint submitted successfully.");
       navigation.navigate("Feed", { createdIssueId: issueId });
     } catch (error) {
-      const uploadError = error?.message?.toLowerCase().includes("upload") ||
-        error?.message?.toLowerCase().includes("network");
-      if (uploadError) {
-        Alert.alert("Upload failed", "Image upload failed. Retry?", [
-          { text: "Cancel", style: "cancel" },
-          { text: "Retry", onPress: () => onCreate() }
-        ]);
-      } else {
-        showErrorToast(error);
-      }
+      showErrorToast(error);
     } finally {
       setLoading(false);
     }

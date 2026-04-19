@@ -9,6 +9,9 @@ import HeadDashboardScreen from "../screens/HeadDashboardScreen";
 import SuperAdminDashboardScreen from "../screens/SuperAdminDashboardScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 import SettingsScreen from "../screens/SettingsScreen";
+import MyIssuesScreen from "../screens/MyIssuesScreen";
+import AuthorityTagManagerScreen from "../screens/AuthorityTagManagerScreen";
+import AuthorityPersonalizedFeedScreen from "../screens/AuthorityPersonalizedFeedScreen";
 import { useTheme } from "../context/ThemeContext";
 
 const Stack = createNativeStackNavigator();
@@ -42,12 +45,15 @@ export default function AppStack() {
         component={AuthorityDashboardScreen}
         options={{ title: "Authority Dashboard" }}
       />
+      <Stack.Screen name="AuthorityPersonalizedFeed" component={AuthorityPersonalizedFeedScreen} options={{ title: "Personalized Feed" }} />
+      <Stack.Screen name="AuthorityTagManager" component={AuthorityTagManagerScreen} options={{ title: "Authority Department Tags" }} />
       <Stack.Screen name="HeadDashboard" component={HeadDashboardScreen} options={{ title: "Head Dashboard" }} />
       <Stack.Screen
         name="SuperAdminDashboard"
         component={SuperAdminDashboardScreen}
         options={{ title: "SuperAdmin", headerShown: false }}
       />
+      <Stack.Screen name="MyIssues" component={MyIssuesScreen} options={{ title: "My Issues" }} />
       <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: "Profile" }} />
       <Stack.Screen name="Settings" component={SettingsScreen} options={{ headerShown: false }} />
     </Stack.Navigator>

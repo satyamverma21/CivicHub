@@ -25,6 +25,7 @@ async function initDb() {
       status TEXT DEFAULT 'active',
       avatar TEXT DEFAULT '',
       bio TEXT DEFAULT '',
+      authority_tags_json TEXT DEFAULT '[]',
       privacy_json TEXT DEFAULT '{"showFullName":true,"anonymousPosts":false}',
       notification_settings_json TEXT DEFAULT '{"all":true,"newIssue":true,"comment":true,"assignment":true,"status":true,"progress":true,"approval":true}',
       push_token TEXT DEFAULT '',
@@ -151,6 +152,12 @@ async function initDb() {
 
   try {
     await db.exec("ALTER TABLE issues ADD COLUMN possible_solutions_json TEXT DEFAULT '{\"solutions\":[],\"note\":\"\"}'");
+  } catch (error) {
+    // Ignore when column already exists.
+  }
+
+  try {
+    await db.exec("ALTER TABLE users ADD COLUMN authority_tags_json TEXT DEFAULT '[]'");
   } catch (error) {
     // Ignore when column already exists.
   }

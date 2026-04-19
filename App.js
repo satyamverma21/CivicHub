@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
 import { DefaultTheme, NavigationContainer, createNavigationContainerRef } from "@react-navigation/native";
 import { AuthProvider } from "./src/context/AuthContext";
 import { ThemeProvider, useTheme } from "./src/context/ThemeContext";
+import { ToastProvider } from "./src/context/ToastContext";
 import RootNavigator from "./src/navigation/RootNavigator";
 import { subscribeNotificationNavigation } from "./src/services/notifications";
 
@@ -46,9 +47,11 @@ function AppInner() {
 export default function App() {
   return (
     <ThemeProvider>
-      <AuthProvider>
-        <AppInner />
-      </AuthProvider>
+      <ToastProvider>
+        <AuthProvider>
+          <AppInner />
+        </AuthProvider>
+      </ToastProvider>
     </ThemeProvider>
   );
 }
