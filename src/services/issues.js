@@ -1,5 +1,6 @@
 import NetInfo from "@react-native-community/netinfo";
 import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
+import { Platform } from "react-native";
 import { apiDelete, apiGet, apiPatch, apiPost, apiPostForm, API_BASE_URL } from "./api";
 import { logError } from "./crashlog";
 import {
@@ -29,12 +30,36 @@ export const ISSUE_CATEGORIES = [
   "Other"
 ];
 export const ISSUE_STATUS = ["open", "in_progress", "resolved", "closed"];
+const MAX_ISSUE_IMAGES = 5;
 
 const LIKE_THROTTLE_MS = 600;
 const likeLastPressedAt = new Map();
 
 function normalizeText(value) {
   return sanitizeTextInput(value || "");
+}
+
+function normalizeLocation(value) {
+  const cleaned = normalizeText(value).slice(0, 220);
+  return cleaned || null;
+}
+
+function normalizeImageUrls(images = []) {
+  if (!Array.isArray(images)) return [];
+  const unique = [];
+  for (const entry of images) {
+    const raw = String(entry || "").trim();
+    if (!raw) continue;
+    const normalized = raw.replace(/\\/g, "/");
+    const match = normalized.match(/(?:^|\/)(uploads\/images\/[^?#\s]+)/i);
+    const uploadPath = match ? `/${match[1].replace(/^\/+/, "")}` : "";
+    const url = /^https?:\/\//i.test(normalized) ? normalized : uploadPath;
+    if (!url) continue;
+    if (unique.includes(url)) continue;
+    unique.push(url);
+    if (unique.length >= MAX_ISSUE_IMAGES) break;
+  }
+  return unique;
 }
 
 async function isOnline() {
@@ -53,11 +78,21 @@ async function uploadImages(assets = []) {
       format: SaveFormat.JPEG
     });
 
-    formData.append("images", {
-      uri: optimized.uri,
-      name: `${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`,
-      type: "image/jpeg"
-    });
+    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`;
+    if (Platform.OS === "web") {
+      let fileBlob = asset?.file;
+      if (!(fileBlob instanceof Blob)) {
+        const blobResponse = await fetch(optimized.uri);
+        fileBlob = await blobResponse.blob();
+      }
+      formData.append("images", fileBlob, fileName);
+    } else {
+      formData.append("images", {
+        uri: optimized.uri,
+        name: fileName,
+        type: "image/jpeg"
+      });
+    }
   }
 
   const response = await withTimeout(withRetry(() => apiPostForm("/api/upload/images", formData), { retries: 2, baseDelayMs: 600 }), 20000);
@@ -78,6 +113,7 @@ export async function createIssue(title, description, images = [], category, cur
     description: normalizeText(description),
     images: imageUrls,
     category: category || null,
+    location: normalizeLocation(options?.location),
     manualAssignedAuthorities: Array.isArray(options?.manualAssignedAuthorities) ? options.manualAssignedAuthorities : []
   };
 
@@ -226,13 +262,48 @@ export async function getStatusHistory(issueId) {
   return result.history || [];
 }
 
-export async function updateIssue(issueId, userId, { title, description, category }) {
+export async function updateIssue(issueId, userId, { title, description, category, location, existingImages = [], newImages = [] }) {
+  const uploadedImages = await uploadImages(newImages);
+  const mergedImages = normalizeImageUrls([...(Array.isArray(existingImages) ? existingImages : []), ...uploadedImages]);
   await apiPatch(`/api/issues/${issueId}`, {
     title: normalizeText(title),
     description: normalizeText(description),
     category,
+    location: normalizeLocation(location),
+    images: mergedImages,
     userId
   });
+}
+
+export async function reverseGeocodeCoordinates(lat, lon) {
+  const latitude = Number(lat);
+  const longitude = Number(lon);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    throw new Error("Invalid coordinates.");
+  }
+
+  const apiKey = String(process.env.EXPO_PUBLIC_LOCATIONIQ_API_KEY || process.env.EXPO_PUBLIC_LOCATIONIQ_KEY || "");
+  if (!apiKey) {
+    throw new Error("Location API key missing. Set EXPO_PUBLIC_LOCATIONIQ_API_KEY.");
+  }
+
+  const query = new URLSearchParams({
+    key: apiKey,
+    lat: String(latitude),
+    lon: String(longitude),
+    format: "json"
+  });
+
+  const response = await fetch(`https://us1.locationiq.com/v1/reverse?${query.toString()}`);
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const reason = String(payload?.error || "Unable to resolve address.");
+    throw new Error(reason);
+  }
+
+  const display = normalizeText(payload?.display_name || "");
+  if (!display) throw new Error("Unable to resolve address.");
+  return display.slice(0, 220);
 }
 
 function containsAny(text, keywords) {
@@ -367,7 +438,14 @@ export async function syncOfflineActions() {
 }
 
 export function absoluteUploadUrl(url) {
-  if (!url) return "";
-  if (url.startsWith("http")) return url;
-  return `${API_BASE_URL}${url}`;
+  const raw = String(url || "").trim();
+  if (!raw) return "";
+  const normalized = raw.replace(/\\/g, "/");
+  if (/^https?:\/\//i.test(normalized)) return normalized;
+  const match = normalized.match(/(?:^|\/)(uploads\/images\/[^?#\s]+)/i);
+  if (match) {
+    return `${API_BASE_URL}/${match[1].replace(/^\/+/, "")}`;
+  }
+  const relative = normalized.startsWith("/") ? normalized : `/${normalized}`;
+  return `${API_BASE_URL}${relative}`;
 }

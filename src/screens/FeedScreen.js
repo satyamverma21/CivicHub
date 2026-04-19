@@ -16,12 +16,9 @@ import { useNetInfo } from "@react-native-community/netinfo";
 import IssueCard from "../components/IssueCard";
 import {
   ISSUE_CATEGORIES,
-  generatePossibleSolutions,
-  generatePossibleSolutionsWithAI,
   getIssuesFeed,
   likeIssue,
-  syncOfflineActions,
-  updatePossibleSolutions
+  syncOfflineActions
 } from "../services/issues";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
@@ -64,163 +61,10 @@ function useDebouncedValue(value, delay = 300) {
   return debounced;
 }
 
-function PossibleSolutionsPanel({
-  issue,
-  colors,
-  saving,
-  generating,
-  note,
-  manualDraft,
-  onChangeNote,
-  onChangeDraft,
-  onToggleApplied,
-  onSaveNote,
-  onAddManual,
-  onGenerateAI
-}) {
-  const solutions = Array.isArray(issue.possibleSolutions) && issue.possibleSolutions.length > 0
-    ? issue.possibleSolutions
-    : generatePossibleSolutions(issue);
-
-  return (
-    <View style={{
-      marginTop: -4,
-      marginBottom: 14,
-      backgroundColor: colors.surface,
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: 14,
-      padding: 14
-    }}>
-      <Text style={{ color: colors.text, fontWeight: "800", fontSize: 14 }}>Possible Solutions (Authority/Admin Only)</Text>
-      <Text style={{ color: colors.textTertiary, fontSize: 12, marginTop: 3 }}>
-        Context-aware actions to resolve this complaint faster.
-      </Text>
-
-      <Pressable
-        onPress={onGenerateAI}
-        disabled={saving || generating}
-        style={{
-          marginTop: 10,
-          borderRadius: 10,
-          paddingVertical: 10,
-          borderWidth: 1.2,
-          borderColor: colors.accent,
-          backgroundColor: colors.accentLight,
-          alignItems: "center",
-          opacity: saving || generating ? 0.6 : 1
-        }}
-      >
-        <Text style={{ color: colors.accent, fontWeight: "700", fontSize: 13 }}>
-          {generating ? "Generating with AI..." : "Generate with AI"}
-        </Text>
-      </Pressable>
-
-      <View style={{ marginTop: 10, gap: 8 }}>
-        {solutions.map((solution) => {
-          const applied = Boolean(solution.applied);
-          return (
-            <View key={solution.id} style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 10 }}>
-              <Text style={{ color: colors.text, fontSize: 13, lineHeight: 18 }}>{solution.text}</Text>
-              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
-                <Text style={{ color: colors.textTertiary, fontSize: 11 }}>
-                  {solution.source === "generated" ? "AI suggested" : "Manual"}
-                </Text>
-                <Pressable
-                  onPress={() => onToggleApplied(solution.id, !applied, solutions)}
-                  disabled={saving}
-                  style={{
-                    borderRadius: 8,
-                    paddingHorizontal: 10,
-                    paddingVertical: 6,
-                    backgroundColor: applied ? colors.accentLight : colors.surfaceAlt,
-                    borderWidth: 1,
-                    borderColor: applied ? colors.accent : colors.border
-                  }}
-                >
-                  <Text style={{ color: applied ? colors.accent : colors.textSecondary, fontWeight: "700", fontSize: 12 }}>
-                    {applied ? "Applied" : "Mark Applied"}
-                  </Text>
-                </Pressable>
-              </View>
-            </View>
-          );
-        })}
-      </View>
-
-      <TextInput
-        value={manualDraft}
-        onChangeText={onChangeDraft}
-        placeholder="Add manual solution step"
-        placeholderTextColor={colors.textTertiary}
-        style={{
-          marginTop: 12,
-          borderWidth: 1.5,
-          borderColor: colors.border,
-          borderRadius: 10,
-          padding: 10,
-          color: colors.text,
-          backgroundColor: colors.surface
-        }}
-      />
-
-      <Pressable
-        onPress={() => onAddManual(solutions)}
-        disabled={saving}
-        style={{
-          marginTop: 8,
-          borderRadius: 10,
-          paddingVertical: 10,
-          backgroundColor: colors.primary,
-          alignItems: "center",
-          opacity: saving ? 0.6 : 1
-        }}
-      >
-        <Text style={{ color: "#FFF", fontWeight: "700", fontSize: 13 }}>Add Manual Solution</Text>
-      </Pressable>
-
-      <TextInput
-        value={note}
-        onChangeText={onChangeNote}
-        placeholder="Internal resolution note (optional)"
-        placeholderTextColor={colors.textTertiary}
-        multiline
-        style={{
-          marginTop: 10,
-          borderWidth: 1.5,
-          borderColor: colors.border,
-          borderRadius: 10,
-          padding: 10,
-          minHeight: 72,
-          textAlignVertical: "top",
-          color: colors.text,
-          backgroundColor: colors.surface
-        }}
-      />
-
-      <Pressable
-        onPress={() => onSaveNote(solutions)}
-        disabled={saving}
-        style={{
-          marginTop: 8,
-          borderRadius: 10,
-          paddingVertical: 10,
-          borderWidth: 1.2,
-          borderColor: colors.primary,
-          alignItems: "center",
-          opacity: saving ? 0.6 : 1
-        }}
-      >
-        <Text style={{ color: colors.primary, fontWeight: "700", fontSize: 13 }}>Save Note</Text>
-      </Pressable>
-    </View>
-  );
-}
-
 const SAVED_FILTER_KEY = "feed_saved_filters_v1";
 
 export default function FeedScreen({ navigation }) {
-  const { currentUser, channelId, userRole, showErrorToast } = useAuth();
+  const { currentUser, channelId, showErrorToast } = useAuth();
   const { colors, shadows } = useTheme();
   const netInfo = useNetInfo();
   const [issues, setIssues] = useState([]);
@@ -237,14 +81,9 @@ export default function FeedScreen({ navigation }) {
   const [authorFilter, setAuthorFilter] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [solutionDraftByIssue, setSolutionDraftByIssue] = useState({});
-  const [solutionNoteByIssue, setSolutionNoteByIssue] = useState({});
-  const [savingSolutionsByIssue, setSavingSolutionsByIssue] = useState({});
-  const [generatingSolutionsByIssue, setGeneratingSolutionsByIssue] = useState({});
 
   const debouncedSearch = useDebouncedValue(searchText, 300);
   const issueShareBase = useMemo(() => "https://college-complaints.local/complaints", []);
-  const canViewSolutionsPanel = ["Authority", "Head", "SuperAdmin", "Admin"].includes(userRole || "");
 
   const loadSavedFilters = useCallback(async () => {
     const raw = await AsyncStorage.getItem(SAVED_FILTER_KEY);
@@ -340,46 +179,6 @@ export default function FeedScreen({ navigation }) {
       await Share.share({ message: `${title}\n${issueShareBase}/${issueId}` });
     } catch (error) {
       console.log("Share failed", error?.message);
-    }
-  };
-
-  const persistSolutions = async (issue, nextSolutions, noteValue) => {
-    setSavingSolutionsByIssue((prev) => ({ ...prev, [issue.id]: true }));
-    try {
-      const result = await updatePossibleSolutions(issue.id, nextSolutions, noteValue);
-      setIssues((prev) => prev.map((item) => (
-        item.id === issue.id
-          ? {
-            ...item,
-            possibleSolutions: result?.possibleSolutions || nextSolutions,
-            possibleSolutionsNote: result?.possibleSolutionsNote ?? noteValue
-          }
-          : item
-      )));
-    } catch (error) {
-      showErrorToast(error);
-    } finally {
-      setSavingSolutionsByIssue((prev) => ({ ...prev, [issue.id]: false }));
-    }
-  };
-
-  const generateAiSolutions = async (issue) => {
-    setGeneratingSolutionsByIssue((prev) => ({ ...prev, [issue.id]: true }));
-    try {
-      const result = await generatePossibleSolutionsWithAI(issue.id);
-      setIssues((prev) => prev.map((item) => (
-        item.id === issue.id
-          ? {
-            ...item,
-            possibleSolutions: result?.possibleSolutions || item.possibleSolutions || [],
-            possibleSolutionsNote: result?.possibleSolutionsNote ?? item.possibleSolutionsNote ?? ""
-          }
-          : item
-      )));
-    } catch (error) {
-      showErrorToast(error);
-    } finally {
-      setGeneratingSolutionsByIssue((prev) => ({ ...prev, [issue.id]: false }));
     }
   };
 
@@ -589,59 +388,6 @@ export default function FeedScreen({ navigation }) {
               onLikePress={() => onLike(item.id)}
               onSharePress={() => onShare(item.id, item.title)}
             />
-
-            {canViewSolutionsPanel ? (
-              <PossibleSolutionsPanel
-                issue={item}
-                colors={colors}
-                saving={Boolean(savingSolutionsByIssue[item.id])}
-                generating={Boolean(generatingSolutionsByIssue[item.id])}
-                note={solutionNoteByIssue[item.id] ?? item.possibleSolutionsNote ?? ""}
-                manualDraft={solutionDraftByIssue[item.id] || ""}
-                onChangeNote={(value) => setSolutionNoteByIssue((prev) => ({ ...prev, [item.id]: value }))}
-                onChangeDraft={(value) => setSolutionDraftByIssue((prev) => ({ ...prev, [item.id]: value }))}
-                onGenerateAI={() => generateAiSolutions(item)}
-                onToggleApplied={async (solutionId, applied, currentSolutions) => {
-                  const next = currentSolutions.map((sol) => (
-                    sol.id === solutionId
-                      ? {
-                        ...sol,
-                        applied,
-                        appliedBy: applied ? (currentUser?.name || "") : "",
-                        appliedAt: applied ? Date.now() : null
-                      }
-                      : sol
-                  ));
-                  const note = solutionNoteByIssue[item.id] ?? item.possibleSolutionsNote ?? "";
-                  await persistSolutions(item, next, note);
-                }}
-                onSaveNote={async (currentSolutions) => {
-                  const note = solutionNoteByIssue[item.id] ?? item.possibleSolutionsNote ?? "";
-                  await persistSolutions(item, currentSolutions, note);
-                }}
-                onAddManual={async (currentSolutions) => {
-                  const draft = (solutionDraftByIssue[item.id] || "").trim();
-                  if (draft.length < 8) {
-                    showErrorToast(new Error("Manual solution should be at least 8 characters."));
-                    return;
-                  }
-                  const next = [
-                    ...currentSolutions,
-                    {
-                      id: `manual-${Date.now()}`,
-                      text: draft,
-                      source: "manual",
-                      applied: false,
-                      appliedBy: "",
-                      appliedAt: null
-                    }
-                  ];
-                  const note = solutionNoteByIssue[item.id] ?? item.possibleSolutionsNote ?? "";
-                  await persistSolutions(item, next, note);
-                  setSolutionDraftByIssue((prev) => ({ ...prev, [item.id]: "" }));
-                }}
-              />
-            ) : null}
           </View>
         )}
         ListFooterComponent={

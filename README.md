@@ -24,6 +24,7 @@ cd ..
 3. Create `.env` in project root
 ```env
 EXPO_PUBLIC_API_URL=http://localhost:4000
+EXPO_PUBLIC_LOCATIONIQ_API_KEY=your_locationiq_key
 ```
 
 4. Start backend (terminal 1)

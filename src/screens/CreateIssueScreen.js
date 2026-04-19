@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import {
   ActivityIndicator,
-  Image,
   Pressable,
   ScrollView,
   Text,
@@ -11,7 +10,8 @@ import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
 import { Picker } from "@react-native-picker/picker";
 import AuthInput from "../components/AuthInput";
-import { ISSUE_CATEGORIES, createIssue } from "../services/issues";
+import ImageCarousel from "../components/ImageCarousel";
+import { ISSUE_CATEGORIES, createIssue, reverseGeocodeCoordinates } from "../services/issues";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 
@@ -22,6 +22,9 @@ export default function CreateIssueScreen({ navigation }) {
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
   const [images, setImages] = useState([]);
+  const [location, setLocation] = useState("");
+  const [locationMode, setLocationMode] = useState("manual");
+  const [loadingLocation, setLoadingLocation] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const requestPermission = async () => {
@@ -49,15 +52,15 @@ export default function CreateIssueScreen({ navigation }) {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsMultipleSelection: true,
-        selectionLimit: 3,
+        selectionLimit: 5,
         quality: 0.85
       });
       if (result.canceled) {
         return;
       }
       const picked = result.assets || [];
-      if (picked.length + images.length > 3) {
-        throw new Error("Only up to 3 images are allowed.");
+      if (picked.length + images.length > 5) {
+        throw new Error("Only up to 5 images are allowed.");
       }
       for (const asset of picked) {
         // eslint-disable-next-line no-await-in-loop
@@ -86,7 +89,7 @@ export default function CreateIssueScreen({ navigation }) {
         category || null,
         currentUser,
         channelId,
-        {}
+        { location }
       );
       showSuccessToast("Complaint submitted successfully.");
       navigation.navigate("Feed", { createdIssueId: issueId });
@@ -94,6 +97,33 @@ export default function CreateIssueScreen({ navigation }) {
       showErrorToast(error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const detectLocation = async () => {
+    if (loadingLocation) return;
+    setLoadingLocation(true);
+    try {
+      const geolocation = globalThis?.navigator?.geolocation;
+      if (!geolocation) {
+        throw new Error("Automatic location is not available on this device.");
+      }
+
+      const position = await new Promise((resolve, reject) => {
+        geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 15000,
+          maximumAge: 30000
+        });
+      });
+      const address = await reverseGeocodeCoordinates(position.coords.latitude, position.coords.longitude);
+      setLocation(address);
+      setLocationMode("auto");
+      showSuccessToast("Location captured.");
+    } catch (error) {
+      showErrorToast(error);
+    } finally {
+      setLoadingLocation(false);
     }
   };
 
@@ -130,6 +160,51 @@ export default function CreateIssueScreen({ navigation }) {
           multiline
           maxLength={5000}
         />
+
+        <Text style={{ fontSize: 13, fontWeight: "600", color: colors.textSecondary, marginBottom: 8, marginLeft: 2 }}>
+          Location
+        </Text>
+        <View style={{ flexDirection: "row", gap: 10, marginBottom: 10 }}>
+          <Pressable
+            onPress={() => setLocationMode("manual")}
+            style={{
+              flex: 1,
+              borderRadius: 10,
+              paddingVertical: 11,
+              borderWidth: 1.5,
+              borderColor: locationMode === "manual" ? colors.primary : colors.border,
+              backgroundColor: locationMode === "manual" ? colors.primaryLight : colors.surface
+            }}
+          >
+            <Text style={{ textAlign: "center", fontWeight: "600", color: locationMode === "manual" ? colors.primary : colors.text }}>
+              Enter Manually
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={detectLocation}
+            style={{
+              flex: 1,
+              borderRadius: 10,
+              paddingVertical: 11,
+              borderWidth: 1.5,
+              borderColor: locationMode === "auto" ? colors.primary : colors.border,
+              backgroundColor: locationMode === "auto" ? colors.primaryLight : colors.surface,
+              opacity: loadingLocation ? 0.7 : 1
+            }}
+          >
+            <Text style={{ textAlign: "center", fontWeight: "600", color: locationMode === "auto" ? colors.primary : colors.text }}>
+              {loadingLocation ? "Detecting..." : "Auto Detect"}
+            </Text>
+          </Pressable>
+        </View>
+        <AuthInput
+          value={location}
+          onChangeText={setLocation}
+          placeholder="e.g., Block A, 2nd floor near lab"
+          label={locationMode === "auto" ? "Detected Location (editable)" : "Manual Location (optional)"}
+          maxLength={220}
+          autoCapitalize="words"
+        />
       </View>
 
       <View style={{
@@ -164,25 +239,18 @@ export default function CreateIssueScreen({ navigation }) {
             backgroundColor: colors.surfaceAlt
           }}
         >
-          <Text style={{ textAlign: "center", fontWeight: "600", color: colors.primary, fontSize: 14 }}>
-            Attach Images (max 3)
+            <Text style={{ textAlign: "center", fontWeight: "600", color: colors.primary, fontSize: 14 }}>
+            Attach Images (max 5)
           </Text>
         </Pressable>
 
         {images.length > 0 ? (
-          <ScrollView horizontal style={{ marginTop: 14 }} showsHorizontalScrollIndicator={false}>
-            {images.map((asset, index) => (
-              <View key={`${asset.uri}-${index}`} style={{ marginRight: 10 }}>
-                <Image
-                  source={{ uri: asset.uri }}
-                  style={{ width: 100, height: 100, borderRadius: 12, backgroundColor: colors.surfaceAlt }}
-                />
-                <Pressable onPress={() => removeImage(index)} style={{ marginTop: 6 }}>
-                  <Text style={{ color: colors.danger, fontWeight: "600", textAlign: "center", fontSize: 13 }}>Remove</Text>
-                </Pressable>
-              </View>
-            ))}
-          </ScrollView>
+          <ImageCarousel
+            images={images}
+            resolveImageUri={(asset) => asset?.uri || ""}
+            onRemoveImage={(index) => removeImage(index)}
+            height={180}
+          />
         ) : null}
       </View>
 

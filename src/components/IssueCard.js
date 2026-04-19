@@ -109,6 +109,11 @@ export default function IssueCard({ issue, onPress, onLikePress, currentUserId, 
           {descriptionPreview(issue.description)}
         </Text>
       ) : null}
+      {issue.location ? (
+        <Text style={{ marginTop: 6, color: colors.textTertiary, fontSize: 13 }}>
+          📍 {issue.location}
+        </Text>
+      ) : null}
 
       <View style={{ flexDirection: "row", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
         <StatusBadge status={issue.status} />

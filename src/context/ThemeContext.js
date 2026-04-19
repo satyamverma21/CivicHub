@@ -54,38 +54,38 @@ const palettes = {
   light: {
     mode: "light",
     // Backgrounds
-    background: "#F8F7FF",
+    background: "#FFF5F5",
     surface: "#FFFFFF",
-    surfaceAlt: "#F3F0FF",
+    surfaceAlt: "#FFE9E9",
     surfaceElevated: "#FFFFFF",
 
     // Text
-    text: "#1A1035",
-    textSecondary: "#6B6080",
-    textTertiary: "#9B93AD",
+    text: "#3A0606",
+    textSecondary: "#7A1D1D",
+    textTertiary: "#A96A6A",
     textInverse: "#FFFFFF",
 
     // Borders
-    border: "#E8E3F3",
-    borderLight: "#F0ECF9",
-    borderFocus: "#7C3AED",
+    border: "#F3C6C6",
+    borderLight: "#FBE5E5",
+    borderFocus: "#8B0000",
 
-    // Primary (Purple)
-    primary: "#7C3AED",
-    primaryDark: "#6D28D9",
-    primaryLight: "#EDE9FE",
-    primaryMuted: "#C4B5FD",
+    // Primary (Dark Red)
+    primary: "#8B0000",
+    primaryDark: "#6A0000",
+    primaryLight: "#FFD9D9",
+    primaryMuted: "#C46C6C",
 
-    // Accent / CTA (Green)
-    accent: "#22C55E",
-    accentDark: "#16A34A",
-    accentLight: "#DCFCE7",
+    // Accent / CTA
+    accent: "#A11212",
+    accentDark: "#8B0000",
+    accentLight: "#FFE4E4",
 
     // Semantic
     danger: "#EF4444",
     dangerDark: "#DC2626",
     dangerLight: "#FEE2E2",
-    success: "#22C55E",
+    success: "#15803D",
     successLight: "#DCFCE7",
     warning: "#F59E0B",
     warningLight: "#FEF3C7",
@@ -94,57 +94,57 @@ const palettes = {
     infoLight: "#DBEAFE",
 
     // Role specific
-    roleUser: { bg: "#EDE9FE", text: "#6D28D9" },
-    roleAuthority: { bg: "#FEF3C7", text: "#92400E" },
+    roleUser: { bg: "#FFE4E4", text: "#8B0000" },
+    roleAuthority: { bg: "#FEE2E2", text: "#991B1B" },
     roleHead: { bg: "#DCFCE7", text: "#166534" },
-    roleSuperAdmin: { bg: "#DBEAFE", text: "#1E40AF" },
+    roleSuperAdmin: { bg: "#FFE4E4", text: "#7F1D1D" },
 
     // Status
-    statusOpen: { bg: "#F3F0FF", text: "#6D28D9" },
-    statusInProgress: { bg: "#DBEAFE", text: "#1D4ED8" },
+    statusOpen: { bg: "#FFE4E4", text: "#8B0000" },
+    statusInProgress: { bg: "#FEE2E2", text: "#991B1B" },
     statusResolved: { bg: "#DCFCE7", text: "#166534" },
-    statusClosed: { bg: "#1E1B2E", text: "#F0ECF9" },
+    statusClosed: { bg: "#3A0606", text: "#FFFFFF" },
 
     // Misc
-    skeleton: "#E8E3F3",
-    overlay: "rgba(26, 16, 53, 0.5)",
+    skeleton: "#F3C6C6",
+    overlay: "rgba(58, 6, 6, 0.5)",
     cardBorder: "transparent"
   },
 
   dark: {
     mode: "dark",
     // Backgrounds
-    background: "#0F0A1A",
-    surface: "#1A1229",
-    surfaceAlt: "#231B35",
-    surfaceElevated: "#2A2040",
+    background: "#210000",
+    surface: "#2E0606",
+    surfaceAlt: "#3A0B0B",
+    surfaceElevated: "#4A1111",
 
     // Text
-    text: "#F0ECF9",
-    textSecondary: "#A89EC4",
-    textTertiary: "#7A6F96",
-    textInverse: "#1A1035",
+    text: "#FFF5F5",
+    textSecondary: "#F7CFCF",
+    textTertiary: "#D9A9A9",
+    textInverse: "#3A0606",
 
     // Borders
-    border: "#2D2541",
-    borderLight: "#231B35",
-    borderFocus: "#A78BFA",
+    border: "#5C1C1C",
+    borderLight: "#461212",
+    borderFocus: "#FFB4B4",
 
-    // Primary (Purple)
-    primary: "#A78BFA",
-    primaryDark: "#8B5CF6",
-    primaryLight: "#2D2055",
-    primaryMuted: "#5B4A82",
+    // Primary (Dark Red)
+    primary: "#FF6B6B",
+    primaryDark: "#D94848",
+    primaryLight: "#5C1C1C",
+    primaryMuted: "#A84B4B",
 
-    // Accent / CTA (Green)
-    accent: "#4ADE80",
-    accentDark: "#22C55E",
-    accentLight: "#14532D",
+    // Accent / CTA
+    accent: "#C62828",
+    accentDark: "#A11212",
+    accentLight: "#5C1C1C",
 
     // Semantic
-    danger: "#F87171",
+    danger: "#FF7A7A",
     dangerDark: "#EF4444",
-    dangerLight: "#451A1A",
+    dangerLight: "#5C1C1C",
     success: "#4ADE80",
     successLight: "#14532D",
     warning: "#FBBF24",
@@ -154,21 +154,21 @@ const palettes = {
     infoLight: "#1E3A5F",
 
     // Role specific
-    roleUser: { bg: "#2D2055", text: "#C4B5FD" },
-    roleAuthority: { bg: "#451A00", text: "#FBBF24" },
+    roleUser: { bg: "#5C1C1C", text: "#FFD6D6" },
+    roleAuthority: { bg: "#451A1A", text: "#FFB4B4" },
     roleHead: { bg: "#14532D", text: "#4ADE80" },
-    roleSuperAdmin: { bg: "#1E3A5F", text: "#60A5FA" },
+    roleSuperAdmin: { bg: "#5C1C1C", text: "#FFDCDC" },
 
     // Status
-    statusOpen: { bg: "#2D2055", text: "#C4B5FD" },
-    statusInProgress: { bg: "#1E3A5F", text: "#60A5FA" },
+    statusOpen: { bg: "#5C1C1C", text: "#FFD6D6" },
+    statusInProgress: { bg: "#6E2222", text: "#FFE3E3" },
     statusResolved: { bg: "#14532D", text: "#4ADE80" },
-    statusClosed: { bg: "#3D3555", text: "#A89EC4" },
+    statusClosed: { bg: "#120000", text: "#F7CFCF" },
 
     // Misc
-    skeleton: "#2D2541",
+    skeleton: "#5C1C1C",
     overlay: "rgba(0, 0, 0, 0.65)",
-    cardBorder: "#2D2541"
+    cardBorder: "#5C1C1C"
   }
 };
 

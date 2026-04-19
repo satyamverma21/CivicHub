@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Image,
   Platform,
   Pressable,
   ScrollView,
@@ -24,6 +23,7 @@ import {
   addComment,
   addProgressUpdate,
   deleteIssue,
+  absoluteUploadUrl,
   formatTimestamp,
   getActiveAuthorities,
   getComments,
@@ -31,8 +31,11 @@ import {
   markIssueNotificationsRead,
   getProgressUpdates,
   getStatusHistory,
+  generatePossibleSolutions,
+  generatePossibleSolutionsWithAI,
   likeIssue,
   manuallyAssignIssue,
+  updatePossibleSolutions,
   updateIssue,
   updateIssueStatus
 } from "../services/issues";
@@ -73,11 +76,23 @@ export default function IssueDetailScreen({ route, navigation }) {
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editCategory, setEditCategory] = useState("");
+  const [editLocation, setEditLocation] = useState("");
+  const [editExistingImages, setEditExistingImages] = useState([]);
+  const [editNewImages, setEditNewImages] = useState([]);
 
   const [authorities, setAuthorities] = useState([]);
   const [selectedAuthorities, setSelectedAuthorities] = useState([]);
   const [savingAssignments, setSavingAssignments] = useState(false);
   const [deletingIssue, setDeletingIssue] = useState(false);
+  const [solutionDraft, setSolutionDraft] = useState("");
+  const [solutionNote, setSolutionNote] = useState("");
+  const [savingSolutions, setSavingSolutions] = useState(false);
+  const [generatingSolutions, setGeneratingSolutions] = useState(false);
+  const roleKey = String(userRole || currentUser?.role || "").toLowerCase().replace(/[\s_-]+/g, "");
+  const editPreviewImages = useMemo(() => ([
+    ...editExistingImages.map((uri, index) => ({ kind: "existing", uri, listIndex: index })),
+    ...editNewImages.map((asset, index) => ({ kind: "new", asset, listIndex: index }))
+  ]), [editExistingImages, editNewImages]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -97,12 +112,17 @@ export default function IssueDetailScreen({ route, navigation }) {
       setEditTitle(issueData?.title || "");
       setEditDescription(issueData?.description || "");
       setEditCategory(issueData?.category || "");
+      setEditLocation(issueData?.location || "");
+      setEditExistingImages(Array.isArray(issueData?.images) ? issueData.images : []);
+      setEditNewImages([]);
+      setSolutionNote(issueData?.possibleSolutionsNote || "");
+      setSolutionDraft("");
 
       const nextStatuses = STATUS_TRANSITIONS[issueData?.status] || [];
       setSelectedStatus(nextStatuses[0] || issueData?.status || "open");
       setSelectedAuthorities(Array.isArray(issueData?.assignedAuthorities) ? issueData.assignedAuthorities : []);
 
-      if (userRole === "Head" && channelId) {
+      if (roleKey === "head" && channelId) {
         const active = await getActiveAuthorities(channelId);
         setAuthorities(active);
       }
@@ -111,7 +131,7 @@ export default function IssueDetailScreen({ route, navigation }) {
     } finally {
       setLoading(false);
     }
-  }, [issueId, userRole, channelId, showErrorToast]);
+  }, [issueId, roleKey, channelId, showErrorToast]);
 
   useEffect(() => {
     loadData();
@@ -127,11 +147,19 @@ export default function IssueDetailScreen({ route, navigation }) {
   );
 
   const isAuthor = issue?.authorId === currentUser?.uid;
-  const canManageIssue = userRole === "Head" || userRole === "SuperAdmin" || isAssignedAuthority;
+  const canDeleteIssue = isAuthor || ["head", "superadmin", "admin"].includes(roleKey);
+  const canManageIssue = ["head", "superadmin"].includes(roleKey) || isAssignedAuthority;
   const canUpdateStatus = canManageIssue;
-  const canAddProgress = userRole === "Authority" && isAssignedAuthority;
+  const canAddProgress = roleKey === "authority" && isAssignedAuthority;
+  const canViewSolutionsPanel = ["authority", "head", "superadmin", "admin"].includes(roleKey);
   const liked = Array.isArray(issue?.likes) && issue?.likes.includes(currentUser?.uid);
   const nextAllowedStatuses = STATUS_TRANSITIONS[issue?.status] || [];
+  const solutions = useMemo(() => {
+    if (!issue) return [];
+    return Array.isArray(issue.possibleSolutions) && issue.possibleSolutions.length > 0
+      ? issue.possibleSolutions
+      : generatePossibleSolutions(issue);
+  }, [issue]);
 
   const ensureSize = async (asset) => {
     if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) {
@@ -191,6 +219,33 @@ export default function IssueDetailScreen({ route, navigation }) {
         await ensureSize(asset);
       }
       setProgressImages((prev) => [...prev, ...picked]);
+    } catch (error) {
+      showErrorToast(error);
+    }
+  };
+
+  const pickEditImages = async () => {
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        throw new Error("Photo permission is required.");
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsMultipleSelection: true,
+        selectionLimit: 5,
+        quality: 0.85
+      });
+      if (result.canceled) return;
+      const picked = result.assets || [];
+      if (picked.length + editNewImages.length + editExistingImages.length > 5) {
+        throw new Error("Only up to 5 images are allowed.");
+      }
+      for (const asset of picked) {
+        // eslint-disable-next-line no-await-in-loop
+        await ensureSize(asset);
+      }
+      setEditNewImages((prev) => [...prev, ...picked]);
     } catch (error) {
       showErrorToast(error);
     }
@@ -268,7 +323,10 @@ export default function IssueDetailScreen({ route, navigation }) {
       await updateIssue(issueId, currentUser.uid, {
         title: editTitle,
         description: editDescription,
-        category: editCategory || null
+        category: editCategory || null,
+        location: editLocation,
+        existingImages: editExistingImages,
+        newImages: editNewImages
       });
       setEditMode(false);
       await loadData();
@@ -287,6 +345,40 @@ export default function IssueDetailScreen({ route, navigation }) {
       showErrorToast(error);
     } finally {
       setSavingAssignments(false);
+    }
+  };
+
+  const persistSolutions = async (nextSolutions, noteValue) => {
+    setSavingSolutions(true);
+    try {
+      const result = await updatePossibleSolutions(issueId, nextSolutions, noteValue);
+      setIssue((prev) => ({
+        ...(prev || {}),
+        possibleSolutions: result?.possibleSolutions || nextSolutions,
+        possibleSolutionsNote: result?.possibleSolutionsNote ?? noteValue
+      }));
+      setSolutionNote(result?.possibleSolutionsNote ?? noteValue);
+    } catch (error) {
+      showErrorToast(error);
+    } finally {
+      setSavingSolutions(false);
+    }
+  };
+
+  const generateAiSolutions = async () => {
+    setGeneratingSolutions(true);
+    try {
+      const result = await generatePossibleSolutionsWithAI(issueId);
+      setIssue((prev) => ({
+        ...(prev || {}),
+        possibleSolutions: result?.possibleSolutions || prev?.possibleSolutions || [],
+        possibleSolutionsNote: result?.possibleSolutionsNote ?? prev?.possibleSolutionsNote ?? ""
+      }));
+      setSolutionNote(result?.possibleSolutionsNote ?? issue?.possibleSolutionsNote ?? "");
+    } catch (error) {
+      showErrorToast(error);
+    } finally {
+      setGeneratingSolutions(false);
     }
   };
 
@@ -356,6 +448,11 @@ export default function IssueDetailScreen({ route, navigation }) {
             <View style={{ height: 1, backgroundColor: colors.borderLight, marginVertical: 14 }} />
 
             <Text style={{ color: colors.text, fontSize: 15, lineHeight: 22 }}>{issue.description}</Text>
+            {issue.location ? (
+              <Text style={{ color: colors.textSecondary, marginTop: 10, fontSize: 14 }}>
+                📍 {issue.location}
+              </Text>
+            ) : null}
             <ImageCarousel images={issue.images || []} />
 
             {/* Action bar */}
@@ -387,38 +484,42 @@ export default function IssueDetailScreen({ route, navigation }) {
           </View>
 
           {/* Author actions */}
-          {isAuthor ? (
+          {isAuthor || canDeleteIssue ? (
             <View style={{ flexDirection: "row", gap: 10, marginTop: 14 }}>
-              <Pressable
-                onPress={() => setEditMode(true)}
-                style={{
-                  flex: 1,
-                  borderWidth: 1.5,
-                  borderColor: colors.primary,
-                  borderRadius: 12,
-                  paddingVertical: 12,
-                  alignItems: "center"
-                }}
-              >
-                <Text style={{ color: colors.primary, fontWeight: "700", fontSize: 14 }}>Edit Issue</Text>
-              </Pressable>
-              <Pressable
-                onPress={onDelete}
-                disabled={deletingIssue}
-                style={{
-                  flex: 1,
-                  borderWidth: 1.5,
-                  borderColor: colors.danger,
-                  borderRadius: 12,
-                  paddingVertical: 12,
-                  alignItems: "center",
-                  opacity: deletingIssue ? 0.6 : 1
-                }}
-              >
-                <Text style={{ color: colors.danger, fontWeight: "700", fontSize: 14 }}>
-                  {deletingIssue ? "Deleting..." : "Delete"}
-                </Text>
-              </Pressable>
+              {isAuthor ? (
+                <Pressable
+                  onPress={() => setEditMode(true)}
+                  style={{
+                    flex: 1,
+                    borderWidth: 1.5,
+                    borderColor: colors.primary,
+                    borderRadius: 12,
+                    paddingVertical: 12,
+                    alignItems: "center"
+                  }}
+                >
+                  <Text style={{ color: colors.primary, fontWeight: "700", fontSize: 14 }}>Edit Issue</Text>
+                </Pressable>
+              ) : null}
+              {canDeleteIssue ? (
+                <Pressable
+                  onPress={onDelete}
+                  disabled={deletingIssue}
+                  style={{
+                    flex: 1,
+                    borderWidth: 1.5,
+                    borderColor: colors.danger,
+                    borderRadius: 12,
+                    paddingVertical: 12,
+                    alignItems: "center",
+                    opacity: deletingIssue ? 0.6 : 1
+                  }}
+                >
+                  <Text style={{ color: colors.danger, fontWeight: "700", fontSize: 14 }}>
+                    {deletingIssue ? "Deleting..." : "Delete"}
+                  </Text>
+                </Pressable>
+              ) : null}
             </View>
           ) : null}
         </>
@@ -461,6 +562,49 @@ export default function IssueDetailScreen({ route, navigation }) {
             </Picker>
           </View>
 
+          <Text style={{ fontSize: 13, fontWeight: "600", color: colors.textSecondary, marginBottom: 6 }}>Location</Text>
+          <TextInput
+            value={editLocation}
+            onChangeText={setEditLocation}
+            maxLength={220}
+            style={[base, { marginBottom: 14 }]}
+            placeholder="e.g., Block A, 2nd floor near lab"
+            placeholderTextColor={colors.textTertiary}
+          />
+
+          <Pressable
+            onPress={pickEditImages}
+            style={{
+              borderWidth: 1.5,
+              borderColor: colors.border,
+              borderRadius: 12,
+              paddingVertical: 12,
+              marginBottom: 10,
+              backgroundColor: colors.surfaceAlt
+            }}
+          >
+            <Text style={{ textAlign: "center", fontWeight: "600", color: colors.primary, fontSize: 14 }}>
+              Manage Images (max 5)
+            </Text>
+          </Pressable>
+
+          {editPreviewImages.length > 0 ? (
+            <View style={{ marginBottom: 14 }}>
+              <ImageCarousel
+                images={editPreviewImages}
+                resolveImageUri={(entry) => (entry.kind === "existing" ? absoluteUploadUrl(entry.uri) : entry.asset?.uri || "")}
+                onRemoveImage={(_, entry) => {
+                  if (entry.kind === "existing") {
+                    setEditExistingImages((prev) => prev.filter((_, i) => i !== entry.listIndex));
+                    return;
+                  }
+                  setEditNewImages((prev) => prev.filter((_, i) => i !== entry.listIndex));
+                }}
+                height={180}
+              />
+            </View>
+          ) : null}
+
           <View style={{ flexDirection: "row", gap: 10 }}>
             <Pressable
               onPress={onSaveEdit}
@@ -469,7 +613,15 @@ export default function IssueDetailScreen({ route, navigation }) {
               <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 15 }}>Save</Text>
             </Pressable>
             <Pressable
-              onPress={() => setEditMode(false)}
+              onPress={() => {
+                setEditMode(false);
+                setEditTitle(issue?.title || "");
+                setEditDescription(issue?.description || "");
+                setEditCategory(issue?.category || "");
+                setEditLocation(issue?.location || "");
+                setEditExistingImages(Array.isArray(issue?.images) ? issue.images : []);
+                setEditNewImages([]);
+              }}
               style={{ borderWidth: 1.5, borderColor: colors.border, borderRadius: 12, paddingVertical: 12, flex: 1, alignItems: "center" }}
             >
               <Text style={{ fontWeight: "700", color: colors.text, fontSize: 15 }}>Cancel</Text>
@@ -536,7 +688,7 @@ export default function IssueDetailScreen({ route, navigation }) {
       ) : null}
 
       {/* Assign Authorities */}
-      {userRole === "Head" ? (
+      {roleKey === "head" ? (
         <View style={{
           marginTop: 16,
           backgroundColor: colors.surface,
@@ -592,6 +744,171 @@ export default function IssueDetailScreen({ route, navigation }) {
             <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 15 }}>
               {savingAssignments ? "Saving..." : "Save Assignment"}
             </Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      {/* Possible Solutions */}
+      {canViewSolutionsPanel ? (
+        <View style={{
+          marginTop: 16,
+          backgroundColor: colors.surface,
+          borderWidth: 1,
+          borderColor: colors.border,
+          borderRadius: 14,
+          padding: 14
+        }}>
+          <Text style={{ color: colors.text, fontWeight: "800", fontSize: 14 }}>Possible Solutions (Authority/Admin Only)</Text>
+          <Text style={{ color: colors.textTertiary, fontSize: 12, marginTop: 3 }}>
+            Context-aware actions to resolve this complaint faster.
+          </Text>
+
+          <Pressable
+            onPress={generateAiSolutions}
+            disabled={savingSolutions || generatingSolutions}
+            style={{
+              marginTop: 10,
+              borderRadius: 10,
+              paddingVertical: 10,
+              borderWidth: 1.2,
+              borderColor: colors.accent,
+              backgroundColor: colors.accentLight,
+              alignItems: "center",
+              opacity: savingSolutions || generatingSolutions ? 0.6 : 1
+            }}
+          >
+            <Text style={{ color: colors.accent, fontWeight: "700", fontSize: 13 }}>
+              {generatingSolutions ? "Generating with AI..." : "Generate with AI"}
+            </Text>
+          </Pressable>
+
+          <View style={{ marginTop: 10, gap: 8 }}>
+            {solutions.map((solution) => {
+              const applied = Boolean(solution.applied);
+              return (
+                <View key={solution.id} style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 10 }}>
+                  <Text style={{ color: colors.text, fontSize: 13, lineHeight: 18 }}>{solution.text}</Text>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
+                    <Text style={{ color: colors.textTertiary, fontSize: 11 }}>
+                      {solution.source === "generated" ? "AI suggested" : "Manual"}
+                    </Text>
+                    <Pressable
+                      onPress={async () => {
+                        const next = solutions.map((sol) => (
+                          sol.id === solution.id
+                            ? {
+                              ...sol,
+                              applied: !applied,
+                              appliedBy: !applied ? (currentUser?.name || "") : "",
+                              appliedAt: !applied ? Date.now() : null
+                            }
+                            : sol
+                        ));
+                        await persistSolutions(next, solutionNote ?? issue?.possibleSolutionsNote ?? "");
+                      }}
+                      disabled={savingSolutions}
+                      style={{
+                        borderRadius: 8,
+                        paddingHorizontal: 10,
+                        paddingVertical: 6,
+                        backgroundColor: applied ? colors.accentLight : colors.surfaceAlt,
+                        borderWidth: 1,
+                        borderColor: applied ? colors.accent : colors.border
+                      }}
+                    >
+                      <Text style={{ color: applied ? colors.accent : colors.textSecondary, fontWeight: "700", fontSize: 12 }}>
+                        {applied ? "Applied" : "Mark Applied"}
+                      </Text>
+                    </Pressable>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+
+          <TextInput
+            value={solutionDraft}
+            onChangeText={setSolutionDraft}
+            placeholder="Add manual solution step"
+            placeholderTextColor={colors.textTertiary}
+            style={{
+              marginTop: 12,
+              borderWidth: 1.5,
+              borderColor: colors.border,
+              borderRadius: 10,
+              padding: 10,
+              color: colors.text,
+              backgroundColor: colors.surface
+            }}
+          />
+
+          <Pressable
+            onPress={async () => {
+              const draft = solutionDraft.trim();
+              if (draft.length < 8) {
+                showErrorToast(new Error("Manual solution should be at least 8 characters."));
+                return;
+              }
+              const next = [
+                ...solutions,
+                {
+                  id: `manual-${Date.now()}`,
+                  text: draft,
+                  source: "manual",
+                  applied: false,
+                  appliedBy: "",
+                  appliedAt: null
+                }
+              ];
+              await persistSolutions(next, solutionNote ?? issue?.possibleSolutionsNote ?? "");
+              setSolutionDraft("");
+            }}
+            disabled={savingSolutions}
+            style={{
+              marginTop: 8,
+              borderRadius: 10,
+              paddingVertical: 10,
+              backgroundColor: colors.primary,
+              alignItems: "center",
+              opacity: savingSolutions ? 0.6 : 1
+            }}
+          >
+            <Text style={{ color: "#FFF", fontWeight: "700", fontSize: 13 }}>Add Manual Solution</Text>
+          </Pressable>
+
+          <TextInput
+            value={solutionNote}
+            onChangeText={setSolutionNote}
+            placeholder="Internal resolution note (optional)"
+            placeholderTextColor={colors.textTertiary}
+            multiline
+            style={{
+              marginTop: 10,
+              borderWidth: 1.5,
+              borderColor: colors.border,
+              borderRadius: 10,
+              padding: 10,
+              minHeight: 72,
+              textAlignVertical: "top",
+              color: colors.text,
+              backgroundColor: colors.surface
+            }}
+          />
+
+          <Pressable
+            onPress={() => persistSolutions(solutions, solutionNote ?? issue?.possibleSolutionsNote ?? "")}
+            disabled={savingSolutions}
+            style={{
+              marginTop: 8,
+              borderRadius: 10,
+              paddingVertical: 10,
+              borderWidth: 1.2,
+              borderColor: colors.primary,
+              alignItems: "center",
+              opacity: savingSolutions ? 0.6 : 1
+            }}
+          >
+            <Text style={{ color: colors.primary, fontWeight: "700", fontSize: 13 }}>Save Note</Text>
           </Pressable>
         </View>
       ) : null}
@@ -702,19 +1019,12 @@ export default function IssueDetailScreen({ route, navigation }) {
             </Pressable>
 
             {progressImages.length > 0 ? (
-              <ScrollView horizontal style={{ marginTop: 10 }} showsHorizontalScrollIndicator={false}>
-                {progressImages.map((asset, index) => (
-                  <View key={`${asset.uri}-${index}`} style={{ marginRight: 10 }}>
-                    <Image
-                      source={{ uri: asset.uri }}
-                      style={{ width: 90, height: 90, borderRadius: 10, backgroundColor: colors.surfaceAlt }}
-                    />
-                    <Pressable onPress={() => setProgressImages((prev) => prev.filter((_, i) => i !== index))}>
-                      <Text style={{ color: colors.danger, textAlign: "center", marginTop: 4, fontSize: 13, fontWeight: "600" }}>Remove</Text>
-                    </Pressable>
-                  </View>
-                ))}
-              </ScrollView>
+              <ImageCarousel
+                images={progressImages}
+                resolveImageUri={(asset) => asset?.uri || ""}
+                onRemoveImage={(index) => setProgressImages((prev) => prev.filter((_, i) => i !== index))}
+                height={180}
+              />
             ) : null}
 
             <Pressable

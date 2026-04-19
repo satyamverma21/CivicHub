@@ -40,7 +40,27 @@ const storage = multer.diskStorage({
     cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`);
   }
 });
-const upload = multer({ storage });
+const MAX_UPLOAD_FILE_SIZE = 5 * 1024 * 1024;
+const IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif", ".gif", ".bmp"]);
+const upload = multer({
+  storage,
+  limits: { fileSize: MAX_UPLOAD_FILE_SIZE, files: 5 },
+  fileFilter: (req, file, cb) => {
+    const mime = String(file?.mimetype || "").toLowerCase();
+    const extension = path.extname(String(file?.originalname || "")).toLowerCase();
+    if (!mime.startsWith("image/") && !IMAGE_EXTENSIONS.has(extension)) {
+      cb(new Error("Only image files are allowed."));
+      return;
+    }
+    cb(null, true);
+  }
+});
+const uploadIssueImages = upload.fields([
+  { name: "images", maxCount: 5 },
+  { name: "images[]", maxCount: 5 },
+  { name: "file", maxCount: 5 },
+  { name: "files", maxCount: 5 }
+]);
 
 const j = (v, fallback) => {
   try { return v ? JSON.parse(v) : fallback; } catch { return fallback; }
@@ -82,6 +102,44 @@ function normalizeAuthorityTags(input) {
     if (!unique.includes(normalized)) unique.push(normalized);
   }
   return unique;
+}
+
+function normalizeIssueLocation(value) {
+  const text = trimTo(value || "", 220);
+  return text || null;
+}
+
+function normalizeIssueImages(input, max = 5) {
+  if (!Array.isArray(input)) return [];
+  const unique = [];
+  for (const entry of input) {
+    const raw = String(entry || "").trim();
+    const value = raw.replace(/\\/g, "/");
+    if (!value) continue;
+    const uploadPathMatch = value.match(/(?:^|\/)(uploads\/images\/[^?#\s]+)/i);
+    const normalized = uploadPathMatch
+      ? `/${uploadPathMatch[1].replace(/^\/+/, "")}`
+      : (value.startsWith("uploads/images/") ? `/${value}` : value);
+    if (!normalized.startsWith("/uploads/images/") && !normalized.startsWith("http://") && !normalized.startsWith("https://")) continue;
+    if (unique.includes(normalized)) continue;
+    unique.push(normalized);
+    if (unique.length >= max) break;
+  }
+  return unique;
+}
+
+async function deleteIssueImageIfUnused(db, imageUrl) {
+  const url = String(imageUrl || "").trim();
+  if (!url.startsWith("/uploads/images/")) return;
+
+  const issueRef = await db.get("SELECT id FROM issues WHERE images_json LIKE ? LIMIT 1", `%${url}%`);
+  if (issueRef) return;
+  const progressRef = await db.get("SELECT id FROM progress_updates WHERE images_json LIKE ? LIMIT 1", `%${url}%`);
+  if (progressRef) return;
+
+  const fileName = path.basename(url);
+  const filePath = path.join(uploadsDir, "images", fileName);
+  await fs.promises.unlink(filePath).catch(() => {});
 }
 
 function authorityMatchesIssue(row, authorityId, authorityTags, issueCategory) {
@@ -214,6 +272,8 @@ function toIssue(row) {
     ? ""
     : s(possibleSolutionsPayload?.note || "");
 
+  const normalizedImages = normalizeIssueImages(j(row.images_json, []), 50);
+
   return {
     id: row.id,
     title: row.title,
@@ -226,7 +286,7 @@ function toIssue(row) {
     status: row.status,
     category: row.category,
     location: row.location,
-    images: j(row.images_json, []),
+    images: normalizedImages,
     assignedAuthorities: j(row.assigned_authorities_json, []),
     likes: j(row.likes_json, []),
     likesCount: row.likes_count || 0,
@@ -318,10 +378,22 @@ async function ensureSuperAdmin(db) {
 }
 
 async function deleteIssueCascade(db, issueId) {
+  const issue = await db.get("SELECT images_json FROM issues WHERE id = ?", issueId);
+  const updates = await db.all("SELECT images_json FROM progress_updates WHERE issue_id = ?", issueId);
+  const removableImages = [
+    ...j(issue?.images_json, []),
+    ...updates.flatMap((row) => j(row.images_json, []))
+  ];
+
   await db.run("DELETE FROM comments WHERE issue_id = ?", issueId);
   await db.run("DELETE FROM progress_updates WHERE issue_id = ?", issueId);
   await db.run("DELETE FROM notifications WHERE issue_id = ?", issueId);
   await db.run("DELETE FROM issues WHERE id = ?", issueId);
+
+  for (const image of [...new Set(removableImages)]) {
+    // eslint-disable-next-line no-await-in-loop
+    await deleteIssueImageIfUnused(db, image);
+  }
 }
 
 async function resolveAuthorityRequest(db, requestId, actorId, decision, expectedChannelId = null) {
@@ -552,9 +624,20 @@ app.patch("/api/authorities/:id/tags", auth, role("Head", "SuperAdmin"), async (
   res.json({ authority: { id: updated.id, ...toUser(updated) } });
 });
 
-app.post("/api/upload/images", auth, upload.array("images", 5), async (req, res) => {
-  const urls = (req.files || []).map((file) => `/uploads/images/${path.basename(file.path)}`);
-  res.json({ urls });
+app.post("/api/upload/images", auth, (req, res) => {
+  uploadIssueImages(req, res, (error) => {
+    if (error) {
+      return res.status(400).json({ error: s(error.message || "Image upload failed.") });
+    }
+    const files = Array.isArray(req.files)
+      ? req.files
+      : Object.values(req.files || {}).flat().filter(Boolean);
+    if (files.length === 0) {
+      return res.status(400).json({ error: "No image files received. Please reselect images and try again." });
+    }
+    const urls = files.map((file) => `/uploads/images/${path.basename(file.path)}`);
+    return res.json({ urls });
+  });
 });
 
 app.post("/api/issues", auth, async (req, res) => {
@@ -565,12 +648,12 @@ app.post("/api/issues", auth, async (req, res) => {
   const title = s(req.body.title);
   const description = s(req.body.description);
   if (title.length < 5 || description.length < 10) return res.status(400).json({ error: "Invalid issue input" });
-  try { await assertRateLimit(db, user.id, "issue", 10); } catch (error) { return res.status(429).json({ error: error.message }); }
 
   const issueId = id("iss");
   const t = now();
   const category = normalizeIssueCategory(req.body.category);
-  const images = Array.isArray(req.body.images) ? req.body.images : [];
+  const images = normalizeIssueImages(req.body.images, 5);
+  const location = normalizeIssueLocation(req.body.location);
   const manual = Array.isArray(req.body.manualAssignedAuthorities) ? req.body.manualAssignedAuthorities : [];
   const allAuthorities = await db.all(
     "SELECT id, authority_tags_json FROM users WHERE channel_id = ? AND role = 'Authority' AND status = 'active'",
@@ -591,7 +674,7 @@ app.post("/api/issues", auth, async (req, res) => {
   await db.run(
     `INSERT INTO issues (id, title, description, author_id, author_name, author_avatar, author_role, channel_id, status, category, location,
       images_json, assigned_authorities_json, likes_json, likes_count, comments_count, progress_updates_count, status_history_json, possible_solutions_json, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, NULL, ?, ?, '[]', 0, 0, 0, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?, ?, '[]', 0, 0, 0, ?, ?, ?, ?)`,
     issueId,
     title,
     description,
@@ -601,6 +684,7 @@ app.post("/api/issues", auth, async (req, res) => {
     user.role,
     user.channel_id,
     category,
+    location,
     JSON.stringify(images),
     JSON.stringify(assigned),
     JSON.stringify(history),
@@ -618,7 +702,6 @@ app.post("/api/issues", auth, async (req, res) => {
     await notify(db, { userId: m.id, issueId, title: "New Issue in Channel", body: `New issue reported: ${title}`, type: "new_issue_channel" });
   }
 
-  await consumeRateLimit(db, user.id, "issue");
   res.json({ issueId });
 });
 
@@ -657,14 +740,33 @@ app.patch("/api/issues/:id", auth, async (req, res) => {
   if (!row) return res.status(404).json({ error: "Issue not found" });
   if (row.author_id !== req.user.uid) return res.status(403).json({ error: "Forbidden" });
 
+  const nextTitle = s(req.body.title || row.title);
+  const nextDescription = s(req.body.description || row.description);
+  const nextCategory = req.body.category || row.category;
+  const nextLocation = Object.prototype.hasOwnProperty.call(req.body, "location")
+    ? normalizeIssueLocation(req.body.location)
+    : row.location;
+  const currentImages = j(row.images_json, []);
+  const nextImages = Object.prototype.hasOwnProperty.call(req.body, "images")
+    ? normalizeIssueImages(req.body.images, 5)
+    : currentImages;
+
   await db.run(
-    "UPDATE issues SET title = ?, description = ?, category = ?, updated_at = ? WHERE id = ?",
-    s(req.body.title || row.title),
-    s(req.body.description || row.description),
-    req.body.category || row.category,
+    "UPDATE issues SET title = ?, description = ?, category = ?, location = ?, images_json = ?, updated_at = ? WHERE id = ?",
+    nextTitle,
+    nextDescription,
+    nextCategory,
+    nextLocation,
+    JSON.stringify(nextImages),
     now(),
     req.params.id
   );
+
+  const removedImages = currentImages.filter((img) => !nextImages.includes(img));
+  for (const removed of removedImages) {
+    // eslint-disable-next-line no-await-in-loop
+    await deleteIssueImageIfUnused(db, removed);
+  }
   res.json({ ok: true });
 });
 
@@ -672,7 +774,8 @@ app.delete("/api/issues/:id", auth, async (req, res) => {
   const db = await initDb();
   const row = await db.get("SELECT * FROM issues WHERE id = ?", req.params.id);
   if (!row) return res.status(404).json({ error: "Issue not found" });
-  if (row.author_id !== req.user.uid && !["Head", "SuperAdmin"].includes(req.user.role)) {
+  const roleKey = String(req.user.role || "").toLowerCase().replace(/[\s_-]+/g, "");
+  if (row.author_id !== req.user.uid && !["head", "superadmin", "admin"].includes(roleKey)) {
     return res.status(403).json({ error: "Forbidden" });
   }
   await deleteIssueCascade(db, req.params.id);
