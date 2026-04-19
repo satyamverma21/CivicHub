@@ -159,20 +159,6 @@ export default function HomeScreen({ navigation }) {
             {userRole === "Authority" ? (
               <>
                 <Pressable
-                  onPress={() => navigation.navigate("Feed")}
-                  style={{
-                    backgroundColor: colors.surface,
-                    borderRadius: 16,
-                    padding: 16,
-                    borderWidth: colors.mode === "dark" ? 1 : 0,
-                    borderColor: colors.cardBorder,
-                    ...(shadows?.sm || {})
-                  }}
-                >
-                  <Text style={{ fontWeight: "700", color: colors.text, fontSize: 15 }}>All Issues Feed</Text>
-                  <Text style={{ color: colors.textTertiary, fontSize: 13 }}>View all channel complaints</Text>
-                </Pressable>
-                <Pressable
                   onPress={() => navigation.navigate("AuthorityPersonalizedFeed")}
                   style={{
                     backgroundColor: colors.surface,

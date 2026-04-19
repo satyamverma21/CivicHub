@@ -12,6 +12,8 @@ import SettingsScreen from "../screens/SettingsScreen";
 import MyIssuesScreen from "../screens/MyIssuesScreen";
 import AuthorityTagManagerScreen from "../screens/AuthorityTagManagerScreen";
 import AuthorityPersonalizedFeedScreen from "../screens/AuthorityPersonalizedFeedScreen";
+import IssueManagementScreen from "../screens/IssueManagementScreen";
+import IssueSolutionsScreen from "../screens/IssueSolutionsScreen";
 import { useTheme } from "../context/ThemeContext";
 
 const Stack = createNativeStackNavigator();
@@ -40,6 +42,8 @@ export default function AppStack() {
       <Stack.Screen name="Feed" component={FeedScreen} options={{ title: "Complaints Feed" }} />
       <Stack.Screen name="CreateIssue" component={CreateIssueScreen} options={{ title: "File Complaint" }} />
       <Stack.Screen name="IssueDetail" component={IssueDetailScreen} options={{ title: "Complaint Detail" }} />
+      <Stack.Screen name="IssueManagement" component={IssueManagementScreen} options={{ title: "Workflow Management" }} />
+      <Stack.Screen name="IssueSolutions" component={IssueSolutionsScreen} options={{ title: "Possible Solutions" }} />
       <Stack.Screen
         name="AuthorityDashboard"
         component={AuthorityDashboardScreen}

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import {
   ActivityIndicator,
   Alert,
@@ -25,34 +26,21 @@ import {
   deleteIssue,
   absoluteUploadUrl,
   formatTimestamp,
-  getActiveAuthorities,
   getComments,
   getIssueById,
   markIssueNotificationsRead,
   getProgressUpdates,
   getStatusHistory,
-  generatePossibleSolutions,
-  generatePossibleSolutionsWithAI,
   likeIssue,
-  manuallyAssignIssue,
-  updatePossibleSolutions,
   updateIssue,
-  updateIssueStatus
 } from "../services/issues";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { inputStyle, inputFocusStyle } from "../styles";
 
-const STATUS_TRANSITIONS = {
-  open: ["in_progress"],
-  in_progress: ["resolved"],
-  resolved: ["closed"],
-  closed: []
-};
-
 export default function IssueDetailScreen({ route, navigation }) {
   const { issueId } = route.params;
-  const { currentUser, userRole, channelId, showErrorToast, showSuccessToast } = useAuth();
+  const { currentUser, userRole, showErrorToast, showSuccessToast } = useAuth();
   const { colors, shadows } = useTheme();
   const [issue, setIssue] = useState(null);
   const [comments, setComments] = useState([]);
@@ -62,10 +50,6 @@ export default function IssueDetailScreen({ route, navigation }) {
 
   const [commentText, setCommentText] = useState("");
   const [sendingComment, setSendingComment] = useState(false);
-
-  const [savingStatus, setSavingStatus] = useState(false);
-  const [selectedStatus, setSelectedStatus] = useState("open");
-  const [statusNote, setStatusNote] = useState("");
 
   const [addingProgress, setAddingProgress] = useState(false);
   const [progressText, setProgressText] = useState("");
@@ -80,14 +64,7 @@ export default function IssueDetailScreen({ route, navigation }) {
   const [editExistingImages, setEditExistingImages] = useState([]);
   const [editNewImages, setEditNewImages] = useState([]);
 
-  const [authorities, setAuthorities] = useState([]);
-  const [selectedAuthorities, setSelectedAuthorities] = useState([]);
-  const [savingAssignments, setSavingAssignments] = useState(false);
   const [deletingIssue, setDeletingIssue] = useState(false);
-  const [solutionDraft, setSolutionDraft] = useState("");
-  const [solutionNote, setSolutionNote] = useState("");
-  const [savingSolutions, setSavingSolutions] = useState(false);
-  const [generatingSolutions, setGeneratingSolutions] = useState(false);
   const roleKey = String(userRole || currentUser?.role || "").toLowerCase().replace(/[\s_-]+/g, "");
   const editPreviewImages = useMemo(() => ([
     ...editExistingImages.map((uri, index) => ({ kind: "existing", uri, listIndex: index })),
@@ -115,27 +92,19 @@ export default function IssueDetailScreen({ route, navigation }) {
       setEditLocation(issueData?.location || "");
       setEditExistingImages(Array.isArray(issueData?.images) ? issueData.images : []);
       setEditNewImages([]);
-      setSolutionNote(issueData?.possibleSolutionsNote || "");
-      setSolutionDraft("");
-
-      const nextStatuses = STATUS_TRANSITIONS[issueData?.status] || [];
-      setSelectedStatus(nextStatuses[0] || issueData?.status || "open");
-      setSelectedAuthorities(Array.isArray(issueData?.assignedAuthorities) ? issueData.assignedAuthorities : []);
-
-      if (roleKey === "head" && channelId) {
-        const active = await getActiveAuthorities(channelId);
-        setAuthorities(active);
-      }
     } catch (error) {
       showErrorToast(error);
     } finally {
       setLoading(false);
     }
-  }, [issueId, roleKey, channelId, showErrorToast]);
+  }, [issueId, showErrorToast]);
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+      return undefined;
+    }, [loadData])
+  );
 
   useEffect(() => {
     markIssueNotificationsRead(issueId).catch(showErrorToast);
@@ -152,14 +121,8 @@ export default function IssueDetailScreen({ route, navigation }) {
   const canUpdateStatus = canManageIssue;
   const canAddProgress = roleKey === "authority" && isAssignedAuthority;
   const canViewSolutionsPanel = ["authority", "head", "superadmin", "admin"].includes(roleKey);
+  const canViewManagementPanel = canUpdateStatus || ["head", "superadmin"].includes(roleKey);
   const liked = Array.isArray(issue?.likes) && issue?.likes.includes(currentUser?.uid);
-  const nextAllowedStatuses = STATUS_TRANSITIONS[issue?.status] || [];
-  const solutions = useMemo(() => {
-    if (!issue) return [];
-    return Array.isArray(issue.possibleSolutions) && issue.possibleSolutions.length > 0
-      ? issue.possibleSolutions
-      : generatePossibleSolutions(issue);
-  }, [issue]);
 
   const ensureSize = async (asset) => {
     if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) {
@@ -300,24 +263,6 @@ export default function IssueDetailScreen({ route, navigation }) {
     ]);
   };
 
-  const onSaveStatus = async () => {
-    if (savingStatus) return;
-    if (nextAllowedStatuses.length === 0) {
-      showErrorToast(new Error("No further status changes allowed."));
-      return;
-    }
-    setSavingStatus(true);
-    try {
-      await updateIssueStatus(issueId, selectedStatus, currentUser.uid, statusNote);
-      setStatusNote("");
-      await loadData();
-    } catch (error) {
-      showErrorToast(error);
-    } finally {
-      setSavingStatus(false);
-    }
-  };
-
   const onSaveEdit = async () => {
     try {
       await updateIssue(issueId, currentUser.uid, {
@@ -333,59 +278,6 @@ export default function IssueDetailScreen({ route, navigation }) {
     } catch (error) {
       showErrorToast(error);
     }
-  };
-
-  const onSaveAssignments = async () => {
-    if (savingAssignments) return;
-    setSavingAssignments(true);
-    try {
-      await manuallyAssignIssue(issueId, selectedAuthorities, currentUser.uid);
-      await loadData();
-    } catch (error) {
-      showErrorToast(error);
-    } finally {
-      setSavingAssignments(false);
-    }
-  };
-
-  const persistSolutions = async (nextSolutions, noteValue) => {
-    setSavingSolutions(true);
-    try {
-      const result = await updatePossibleSolutions(issueId, nextSolutions, noteValue);
-      setIssue((prev) => ({
-        ...(prev || {}),
-        possibleSolutions: result?.possibleSolutions || nextSolutions,
-        possibleSolutionsNote: result?.possibleSolutionsNote ?? noteValue
-      }));
-      setSolutionNote(result?.possibleSolutionsNote ?? noteValue);
-    } catch (error) {
-      showErrorToast(error);
-    } finally {
-      setSavingSolutions(false);
-    }
-  };
-
-  const generateAiSolutions = async () => {
-    setGeneratingSolutions(true);
-    try {
-      const result = await generatePossibleSolutionsWithAI(issueId);
-      setIssue((prev) => ({
-        ...(prev || {}),
-        possibleSolutions: result?.possibleSolutions || prev?.possibleSolutions || [],
-        possibleSolutionsNote: result?.possibleSolutionsNote ?? prev?.possibleSolutionsNote ?? ""
-      }));
-      setSolutionNote(result?.possibleSolutionsNote ?? issue?.possibleSolutionsNote ?? "");
-    } catch (error) {
-      showErrorToast(error);
-    } finally {
-      setGeneratingSolutions(false);
-    }
-  };
-
-  const toggleAuthority = (authorityId) => {
-    setSelectedAuthorities((prev) =>
-      prev.includes(authorityId) ? prev.filter((id) => id !== authorityId) : [...prev, authorityId]
-    );
   };
 
   const onShare = async () => {
@@ -630,291 +522,71 @@ export default function IssueDetailScreen({ route, navigation }) {
         </View>
       )}
 
-      {/* Change Status */}
-      {canUpdateStatus ? (
+      {(canViewManagementPanel || canViewSolutionsPanel) ? (
         <View style={{
           marginTop: 16,
           backgroundColor: colors.surface,
-          borderRadius: 16,
+          borderRadius: 18,
           padding: 16,
           borderWidth: colors.mode === "dark" ? 1 : 0,
           borderColor: colors.cardBorder,
           ...(shadows?.md || {})
         }}>
-          <Text style={{ fontWeight: "800", fontSize: 16, color: colors.text, marginBottom: 10 }}>Change Status</Text>
-          <View style={{ borderWidth: 1.5, borderColor: colors.border, borderRadius: 10, backgroundColor: colors.surface }}>
-            <Picker
-              enabled={nextAllowedStatuses.length > 0}
-              selectedValue={selectedStatus}
-              onValueChange={(value) => setSelectedStatus(value)}
-              style={{ color: colors.text }}
-            >
-              {nextAllowedStatuses.length === 0 ? (
-                <Picker.Item label="No more transitions" value={issue.status} />
-              ) : (
-                nextAllowedStatuses.map((status) => (
-                  <Picker.Item key={status} label={status.replace("_", " ")} value={status} />
-                ))
-              )}
-            </Picker>
-          </View>
-
-          <TextInput
-            value={statusNote}
-            onChangeText={setStatusNote}
-            placeholder="Optional note (e.g., Hostel plumbing repaired and verified)"
-            placeholderTextColor={colors.textTertiary}
-            multiline
-            style={[base, { marginTop: 10, minHeight: 80, textAlignVertical: "top" }]}
-          />
-
-          <Pressable
-            onPress={onSaveStatus}
-            disabled={savingStatus || nextAllowedStatuses.length === 0}
-            style={{
-              marginTop: 12,
-              backgroundColor: colors.accent,
-              borderRadius: 10,
-              paddingVertical: 13,
-              alignItems: "center",
-              opacity: savingStatus || nextAllowedStatuses.length === 0 ? 0.6 : 1
-            }}
-          >
-            <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 15 }}>
-              {savingStatus ? "Saving..." : "Update Status"}
-            </Text>
-          </Pressable>
-        </View>
-      ) : null}
-
-      {/* Assign Authorities */}
-      {roleKey === "head" ? (
-        <View style={{
-          marginTop: 16,
-          backgroundColor: colors.surface,
-          borderRadius: 16,
-          padding: 16,
-          borderWidth: colors.mode === "dark" ? 1 : 0,
-          borderColor: colors.cardBorder,
-          ...(shadows?.md || {})
-        }}>
-          <Text style={{ fontWeight: "800", fontSize: 16, color: colors.text, marginBottom: 10 }}>Assign Authorities</Text>
-          {authorities.length === 0 ? (
-            <Text style={{ color: colors.textTertiary }}>No active authorities.</Text>
-          ) : null}
-
-          {authorities.map((authority) => {
-            const selected = selectedAuthorities.includes(authority.id);
-            return (
+          <Text style={{ color: colors.text, fontWeight: "800", fontSize: 16 }}>Resolution Workspace</Text>
+          <Text style={{ color: colors.textTertiary, marginTop: 4, fontSize: 13 }}>
+            Use focused screens for workflow actions and solution planning.
+          </Text>
+          <View style={{ marginTop: 12, gap: 10 }}>
+            {canViewManagementPanel ? (
               <Pressable
-                key={authority.id}
-                onPress={() => toggleAuthority(authority.id)}
+                onPress={() => navigation.navigate("IssueManagement", { issueId })}
                 style={{
-                  borderWidth: 1.5,
-                  borderColor: selected ? colors.primary : colors.border,
-                  backgroundColor: selected ? colors.primaryLight : colors.surface,
+                  borderWidth: 1.2,
+                  borderColor: colors.border,
                   borderRadius: 12,
-                  padding: 12,
-                  marginBottom: 8,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 8
+                  paddingVertical: 12,
+                  paddingHorizontal: 14,
+                  backgroundColor: colors.surfaceAlt
                 }}
               >
-                {selected ? <Text style={{ color: colors.primary, fontWeight: "700" }}>✓</Text> : null}
-                <View>
-                  <Text style={{ fontWeight: "700", color: colors.text }}>{authority.name}</Text>
-                  <Text style={{ color: colors.textSecondary, fontSize: 13 }}>{authority.email}</Text>
-                </View>
+                <Text style={{ color: colors.text, fontWeight: "700", fontSize: 14 }}>Manage Status & Assignments</Text>
+                <Text style={{ color: colors.textSecondary, marginTop: 3, fontSize: 12 }}>
+                  Update complaint status and authority assignment.
+                </Text>
               </Pressable>
-            );
-          })}
-
-          <Pressable
-            onPress={onSaveAssignments}
-            style={{
-              marginTop: 6,
-              backgroundColor: colors.primary,
-              borderRadius: 10,
-              paddingVertical: 13,
-              alignItems: "center",
-              opacity: savingAssignments ? 0.6 : 1
-            }}
-          >
-            <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 15 }}>
-              {savingAssignments ? "Saving..." : "Save Assignment"}
-            </Text>
-          </Pressable>
-        </View>
-      ) : null}
-
-      {/* Possible Solutions */}
-      {canViewSolutionsPanel ? (
-        <View style={{
-          marginTop: 16,
-          backgroundColor: colors.surface,
-          borderWidth: 1,
-          borderColor: colors.border,
-          borderRadius: 14,
-          padding: 14
-        }}>
-          <Text style={{ color: colors.text, fontWeight: "800", fontSize: 14 }}>Possible Solutions (Authority/Admin Only)</Text>
-          <Text style={{ color: colors.textTertiary, fontSize: 12, marginTop: 3 }}>
-            Context-aware actions to resolve this complaint faster.
-          </Text>
-
-          <Pressable
-            onPress={generateAiSolutions}
-            disabled={savingSolutions || generatingSolutions}
-            style={{
-              marginTop: 10,
-              borderRadius: 10,
-              paddingVertical: 10,
-              borderWidth: 1.2,
-              borderColor: colors.accent,
-              backgroundColor: colors.accentLight,
-              alignItems: "center",
-              opacity: savingSolutions || generatingSolutions ? 0.6 : 1
-            }}
-          >
-            <Text style={{ color: colors.accent, fontWeight: "700", fontSize: 13 }}>
-              {generatingSolutions ? "Generating with AI..." : "Generate with AI"}
-            </Text>
-          </Pressable>
-
-          <View style={{ marginTop: 10, gap: 8 }}>
-            {solutions.map((solution) => {
-              const applied = Boolean(solution.applied);
-              return (
-                <View key={solution.id} style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 10 }}>
-                  <Text style={{ color: colors.text, fontSize: 13, lineHeight: 18 }}>{solution.text}</Text>
-                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
-                    <Text style={{ color: colors.textTertiary, fontSize: 11 }}>
-                      {solution.source === "generated" ? "AI suggested" : "Manual"}
-                    </Text>
-                    <Pressable
-                      onPress={async () => {
-                        const next = solutions.map((sol) => (
-                          sol.id === solution.id
-                            ? {
-                              ...sol,
-                              applied: !applied,
-                              appliedBy: !applied ? (currentUser?.name || "") : "",
-                              appliedAt: !applied ? Date.now() : null
-                            }
-                            : sol
-                        ));
-                        await persistSolutions(next, solutionNote ?? issue?.possibleSolutionsNote ?? "");
-                      }}
-                      disabled={savingSolutions}
-                      style={{
-                        borderRadius: 8,
-                        paddingHorizontal: 10,
-                        paddingVertical: 6,
-                        backgroundColor: applied ? colors.accentLight : colors.surfaceAlt,
-                        borderWidth: 1,
-                        borderColor: applied ? colors.accent : colors.border
-                      }}
-                    >
-                      <Text style={{ color: applied ? colors.accent : colors.textSecondary, fontWeight: "700", fontSize: 12 }}>
-                        {applied ? "Applied" : "Mark Applied"}
-                      </Text>
-                    </Pressable>
-                  </View>
-                </View>
-              );
-            })}
+            ) : null}
+            {canViewSolutionsPanel ? (
+              <Pressable
+                onPress={() => navigation.navigate("IssueSolutions", { issueId })}
+                style={{
+                  borderWidth: 1.2,
+                  borderColor: colors.border,
+                  borderRadius: 12,
+                  paddingVertical: 12,
+                  paddingHorizontal: 14,
+                  backgroundColor: colors.surfaceAlt
+                }}
+              >
+                <Text style={{ color: colors.text, fontWeight: "700", fontSize: 14 }}>Possible Solutions</Text>
+                <Text style={{ color: colors.textSecondary, marginTop: 3, fontSize: 12 }}>
+                  Generate, edit, and track resolution steps.
+                </Text>
+              </Pressable>
+            ) : null}
           </View>
-
-          <TextInput
-            value={solutionDraft}
-            onChangeText={setSolutionDraft}
-            placeholder="Add manual solution step"
-            placeholderTextColor={colors.textTertiary}
-            style={{
-              marginTop: 12,
-              borderWidth: 1.5,
-              borderColor: colors.border,
-              borderRadius: 10,
-              padding: 10,
-              color: colors.text,
-              backgroundColor: colors.surface
-            }}
-          />
-
-          <Pressable
-            onPress={async () => {
-              const draft = solutionDraft.trim();
-              if (draft.length < 8) {
-                showErrorToast(new Error("Manual solution should be at least 8 characters."));
-                return;
-              }
-              const next = [
-                ...solutions,
-                {
-                  id: `manual-${Date.now()}`,
-                  text: draft,
-                  source: "manual",
-                  applied: false,
-                  appliedBy: "",
-                  appliedAt: null
-                }
-              ];
-              await persistSolutions(next, solutionNote ?? issue?.possibleSolutionsNote ?? "");
-              setSolutionDraft("");
-            }}
-            disabled={savingSolutions}
-            style={{
-              marginTop: 8,
-              borderRadius: 10,
-              paddingVertical: 10,
-              backgroundColor: colors.primary,
-              alignItems: "center",
-              opacity: savingSolutions ? 0.6 : 1
-            }}
-          >
-            <Text style={{ color: "#FFF", fontWeight: "700", fontSize: 13 }}>Add Manual Solution</Text>
-          </Pressable>
-
-          <TextInput
-            value={solutionNote}
-            onChangeText={setSolutionNote}
-            placeholder="Internal resolution note (optional)"
-            placeholderTextColor={colors.textTertiary}
-            multiline
-            style={{
-              marginTop: 10,
-              borderWidth: 1.5,
-              borderColor: colors.border,
-              borderRadius: 10,
-              padding: 10,
-              minHeight: 72,
-              textAlignVertical: "top",
-              color: colors.text,
-              backgroundColor: colors.surface
-            }}
-          />
-
-          <Pressable
-            onPress={() => persistSolutions(solutions, solutionNote ?? issue?.possibleSolutionsNote ?? "")}
-            disabled={savingSolutions}
-            style={{
-              marginTop: 8,
-              borderRadius: 10,
-              paddingVertical: 10,
-              borderWidth: 1.2,
-              borderColor: colors.primary,
-              alignItems: "center",
-              opacity: savingSolutions ? 0.6 : 1
-            }}
-          >
-            <Text style={{ color: colors.primary, fontWeight: "700", fontSize: 13 }}>Save Note</Text>
-          </Pressable>
         </View>
       ) : null}
 
       {/* Status History */}
-      <View style={{ marginTop: 24 }}>
+      <View style={{
+        marginTop: 24,
+        backgroundColor: colors.surface,
+        borderRadius: 18,
+        padding: 16,
+        borderWidth: colors.mode === "dark" ? 1 : 0,
+        borderColor: colors.cardBorder,
+        ...(shadows?.md || {})
+      }}>
         <Text style={{ fontSize: 18, fontWeight: "800", color: colors.text, marginBottom: 12 }}>Status History</Text>
         {statusHistory.length === 0 ? (
           <Text style={{ color: colors.textTertiary }}>No status updates yet.</Text>
@@ -939,7 +611,15 @@ export default function IssueDetailScreen({ route, navigation }) {
       </View>
 
       {/* Comments */}
-      <View style={{ marginTop: 24 }}>
+      <View style={{
+        marginTop: 16,
+        backgroundColor: colors.surface,
+        borderRadius: 18,
+        padding: 16,
+        borderWidth: colors.mode === "dark" ? 1 : 0,
+        borderColor: colors.cardBorder,
+        ...(shadows?.md || {})
+      }}>
         <Text style={{ fontSize: 18, fontWeight: "800", color: colors.text, marginBottom: 12 }}>Comments</Text>
 
         <View style={{ flexDirection: "row", gap: 10, marginBottom: 16 }}>
@@ -970,7 +650,15 @@ export default function IssueDetailScreen({ route, navigation }) {
       </View>
 
       {/* Progress Updates */}
-      <View style={{ marginTop: 24 }}>
+      <View style={{
+        marginTop: 16,
+        backgroundColor: colors.surface,
+        borderRadius: 18,
+        padding: 16,
+        borderWidth: colors.mode === "dark" ? 1 : 0,
+        borderColor: colors.cardBorder,
+        ...(shadows?.md || {})
+      }}>
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
           <Text style={{ fontSize: 18, fontWeight: "800", color: colors.text }}>Progress Updates</Text>
           {canAddProgress ? (

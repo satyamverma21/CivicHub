@@ -11,7 +11,7 @@ import * as FileSystem from "expo-file-system";
 import { Picker } from "@react-native-picker/picker";
 import AuthInput from "../components/AuthInput";
 import ImageCarousel from "../components/ImageCarousel";
-import { ISSUE_CATEGORIES, createIssue, reverseGeocodeCoordinates } from "../services/issues";
+import { ISSUE_rCATEGORIES, createIssue, reverseGeocodeCoordinates } from "../services/issues";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 
