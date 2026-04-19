@@ -5,7 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import { apiGet } from "../services/api";
 import { useTheme } from "../context/ThemeContext";
 
-function QuickAction({ title, subtitle, onPress, colors, shadows, iconText, accentColor }) {
+function QuickAction({ title, subtitle, onPress, colors, shadows, accentColor }) {
   return (
     <Pressable
       onPress={onPress}
@@ -24,12 +24,8 @@ function QuickAction({ title, subtitle, onPress, colors, shadows, iconText, acce
         height: 40,
         borderRadius: 12,
         backgroundColor: accentColor || colors.primaryLight,
-        alignItems: "center",
-        justifyContent: "center",
         marginBottom: 10
-      }}>
-        <Text style={{ fontSize: 18 }}>{iconText}</Text>
-      </View>
+      }} />
       <Text style={{ fontWeight: "700", color: colors.text, fontSize: 15 }}>{title}</Text>
       <Text style={{ color: colors.textTertiary, fontSize: 12, marginTop: 2 }}>{subtitle}</Text>
     </Pressable>
@@ -44,7 +40,7 @@ export default function HomeScreen({ navigation }) {
     logout,
     showErrorToast
   } = useAuth();
-  const { colors, shadows, spacing } = useTheme();
+  const { colors, shadows } = useTheme();
 
   const [unreadNotifications, setUnreadNotifications] = useState(0);
 
@@ -63,30 +59,26 @@ export default function HomeScreen({ navigation }) {
     }, [loadUnread, showErrorToast])
   );
 
-  const firstName = (currentUser?.name || currentUser?.email || "").split(" ")[0] || "there";
+  const firstName = (currentUser?.name || currentUser?.email || "").split(" ")[0] || "Student";
 
   return (
     <ScrollView
       style={{ backgroundColor: colors.background }}
       contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
     >
-      {/* Welcome */}
       <View style={{ marginBottom: 24 }}>
         <Text style={{ fontSize: 15, color: colors.textSecondary, fontWeight: "500" }}>
-          Welcome back,
+          College Complaint Portal
         </Text>
         <Text style={{ fontSize: 28, fontWeight: "800", color: colors.text, letterSpacing: -0.5, marginTop: 2 }}>
-          {firstName} 👋
+          Welcome, {firstName}
         </Text>
         <View style={{ flexDirection: "row", gap: 12, marginTop: 12 }}>
           <View style={{
             backgroundColor: colors.primaryLight,
             borderRadius: 10,
             paddingHorizontal: 12,
-            paddingVertical: 6,
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 6
+            paddingVertical: 6
           }}>
             <Text style={{ color: colors.primary, fontWeight: "600", fontSize: 13 }}>
               {userRole || "User"}
@@ -100,7 +92,7 @@ export default function HomeScreen({ navigation }) {
               paddingVertical: 6
             }}>
               <Text style={{ color: colors.textSecondary, fontWeight: "500", fontSize: 13 }}>
-                Channel: {channelId}
+                College ID: {channelId}
               </Text>
             </View>
           ) : null}
@@ -119,7 +111,6 @@ export default function HomeScreen({ navigation }) {
         </View>
       </View>
 
-      {/* Quick Actions */}
       {channelId ? (
         <View style={{ marginBottom: 20 }}>
           <Text style={{ fontSize: 18, fontWeight: "700", color: colors.text, marginBottom: 12 }}>
@@ -127,20 +118,18 @@ export default function HomeScreen({ navigation }) {
           </Text>
           <View style={{ flexDirection: "row", gap: 12, marginBottom: 12 }}>
             <QuickAction
-              title="Issues Feed"
-              subtitle="Browse & discuss"
+              title="Complaints Feed"
+              subtitle="Browse student complaints"
               onPress={() => navigation.navigate("Feed")}
               colors={colors}
               shadows={shadows}
-              iconText="📋"
             />
             <QuickAction
-              title="Report Issue"
-              subtitle="Text, image or voice"
+              title="File Complaint"
+              subtitle="Submit issue with details"
               onPress={() => navigation.navigate("CreateIssue")}
               colors={colors}
               shadows={shadows}
-              iconText="✏️"
               accentColor={colors.accentLight}
             />
           </View>
@@ -153,19 +142,18 @@ export default function HomeScreen({ navigation }) {
           marginBottom: 20
         }}>
           <Text style={{ color: colors.warningText, fontWeight: "700", fontSize: 15 }}>
-            No channel assigned
+            No college channel assigned
           </Text>
           <Text style={{ color: colors.warningText, fontSize: 13, marginTop: 4, opacity: 0.8 }}>
-            Contact your organization head to join a channel.
+            Contact your college admin to join the correct channel.
           </Text>
         </View>
       )}
 
-      {/* Role Dashboards */}
       {["Authority", "Head", "SuperAdmin"].includes(userRole) ? (
         <View style={{ marginBottom: 20 }}>
           <Text style={{ fontSize: 18, fontWeight: "700", color: colors.text, marginBottom: 12 }}>
-            Dashboards
+            Management Dashboards
           </Text>
           <View style={{ gap: 10 }}>
             <Pressable
@@ -174,21 +162,13 @@ export default function HomeScreen({ navigation }) {
                 backgroundColor: colors.surface,
                 borderRadius: 16,
                 padding: 16,
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 14,
                 borderWidth: colors.mode === "dark" ? 1 : 0,
                 borderColor: colors.cardBorder,
                 ...(shadows?.sm || {})
               }}
             >
-              <View style={{ width: 44, height: 44, borderRadius: 13, backgroundColor: colors.infoLight, alignItems: "center", justifyContent: "center" }}>
-                <Text style={{ fontSize: 20 }}>⚡</Text>
-              </View>
-              <View>
-                <Text style={{ fontWeight: "700", color: colors.text, fontSize: 15 }}>Authority Dashboard</Text>
-                <Text style={{ color: colors.textTertiary, fontSize: 13 }}>Manage assigned issues</Text>
-              </View>
+              <Text style={{ fontWeight: "700", color: colors.text, fontSize: 15 }}>Authority Dashboard</Text>
+              <Text style={{ color: colors.textTertiary, fontSize: 13 }}>Manage assigned complaints</Text>
             </Pressable>
 
             {userRole === "Head" ? (
@@ -198,21 +178,13 @@ export default function HomeScreen({ navigation }) {
                   backgroundColor: colors.surface,
                   borderRadius: 16,
                   padding: 16,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 14,
                   borderWidth: colors.mode === "dark" ? 1 : 0,
                   borderColor: colors.cardBorder,
                   ...(shadows?.sm || {})
                 }}
               >
-                <View style={{ width: 44, height: 44, borderRadius: 13, backgroundColor: colors.accentLight, alignItems: "center", justifyContent: "center" }}>
-                  <Text style={{ fontSize: 20 }}>👑</Text>
-                </View>
-                <View>
-                  <Text style={{ fontWeight: "700", color: colors.text, fontSize: 15 }}>Head Dashboard</Text>
-                  <Text style={{ color: colors.textTertiary, fontSize: 13 }}>Approve authorities & manage</Text>
-                </View>
+                <Text style={{ fontWeight: "700", color: colors.text, fontSize: 15 }}>Head Dashboard</Text>
+                <Text style={{ color: colors.textTertiary, fontSize: 13 }}>Approve authorities and monitor resolution</Text>
               </Pressable>
             ) : null}
 
@@ -223,28 +195,19 @@ export default function HomeScreen({ navigation }) {
                   backgroundColor: colors.surface,
                   borderRadius: 16,
                   padding: 16,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 14,
                   borderWidth: colors.mode === "dark" ? 1 : 0,
                   borderColor: colors.cardBorder,
                   ...(shadows?.sm || {})
                 }}
               >
-                <View style={{ width: 44, height: 44, borderRadius: 13, backgroundColor: colors.dangerLight, alignItems: "center", justifyContent: "center" }}>
-                  <Text style={{ fontSize: 20 }}>🛡</Text>
-                </View>
-                <View>
-                  <Text style={{ fontWeight: "700", color: colors.text, fontSize: 15 }}>SuperAdmin Panel</Text>
-                  <Text style={{ color: colors.textTertiary, fontSize: 13 }}>Full system governance</Text>
-                </View>
+                <Text style={{ fontWeight: "700", color: colors.text, fontSize: 15 }}>Super Admin Panel</Text>
+                <Text style={{ color: colors.textTertiary, fontSize: 13 }}>System-wide college governance</Text>
               </Pressable>
             ) : null}
           </View>
         </View>
       ) : null}
 
-      {/* Profile & Settings */}
       <View style={{ gap: 10, marginTop: 8 }}>
         <Pressable
           onPress={() => navigation.navigate("Profile")}
@@ -252,23 +215,13 @@ export default function HomeScreen({ navigation }) {
             backgroundColor: colors.surface,
             borderRadius: 16,
             padding: 16,
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 14,
             borderWidth: colors.mode === "dark" ? 1 : 0,
             borderColor: colors.cardBorder,
             ...(shadows?.sm || {})
           }}
         >
-          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primaryLight, alignItems: "center", justifyContent: "center" }}>
-            <Text style={{ fontWeight: "700", color: colors.primary, fontSize: 14 }}>
-              {(currentUser?.name || "U")[0].toUpperCase()}
-            </Text>
-          </View>
-          <View>
-            <Text style={{ fontWeight: "700", color: colors.text, fontSize: 15 }}>Profile</Text>
-            <Text style={{ color: colors.textTertiary, fontSize: 13 }}>{currentUser?.email || ""}</Text>
-          </View>
+          <Text style={{ fontWeight: "700", color: colors.text, fontSize: 15 }}>Profile</Text>
+          <Text style={{ color: colors.textTertiary, fontSize: 13 }}>{currentUser?.email || ""}</Text>
         </Pressable>
 
         <Pressable
@@ -277,17 +230,11 @@ export default function HomeScreen({ navigation }) {
             backgroundColor: colors.surface,
             borderRadius: 16,
             padding: 16,
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 14,
             borderWidth: colors.mode === "dark" ? 1 : 0,
             borderColor: colors.cardBorder,
             ...(shadows?.sm || {})
           }}
         >
-          <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: colors.surfaceAlt, alignItems: "center", justifyContent: "center" }}>
-            <Text style={{ fontSize: 18 }}>⚙️</Text>
-          </View>
           <Text style={{ fontWeight: "700", color: colors.text, fontSize: 15 }}>Settings</Text>
         </Pressable>
 

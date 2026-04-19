@@ -149,6 +149,12 @@ async function initDb() {
     );
   `);
 
+  try {
+    await db.exec("ALTER TABLE issues ADD COLUMN possible_solutions_json TEXT DEFAULT '{\"solutions\":[],\"note\":\"\"}'");
+  } catch (error) {
+    // Ignore when column already exists.
+  }
+
   return db;
 }
 

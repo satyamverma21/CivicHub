@@ -41,7 +41,7 @@ export default function SplashScreen() {
         marginTop: 4,
         fontWeight: "500"
       }}>
-        Community Issues
+        College Complaint Management
       </Text>
 
       <ActivityIndicator size="small" color={colors.primary} style={{ marginTop: 32 }} />

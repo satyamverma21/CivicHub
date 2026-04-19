@@ -59,7 +59,7 @@ export default function LoginScreen({ navigation }) {
             Welcome Back
           </Text>
           <Text style={{ color: colors.textSecondary, marginTop: 4, fontSize: 15 }}>
-            Sign in to your community
+            Sign in to your college complaint portal
           </Text>
         </View>
 
@@ -107,7 +107,7 @@ export default function LoginScreen({ navigation }) {
         <View style={{ alignItems: "center", marginTop: 28, gap: 14 }}>
           <Pressable onPress={() => navigation.navigate("HeadSignup")}>
             <Text style={{ color: colors.primary, fontWeight: "600", fontSize: 15 }}>
-              Create Organization Account
+              Create College Admin Account
             </Text>
           </Pressable>
           <Pressable onPress={() => navigation.navigate("UserSignup")}>

@@ -17,7 +17,18 @@ import { assertRateLimit, incrementRateLimit } from "./rateLimit";
 import { withRetry, withTimeout } from "./retry";
 import { sanitizeTextInput } from "./sanitization";
 
-export const ISSUE_CATEGORIES = ["Pothole", "Water", "Electricity", "Roads", "Waste", "Health", "Other"];
+export const ISSUE_CATEGORIES = [
+  "Academic",
+  "Hostel",
+  "Canteen",
+  "Faculty",
+  "Infrastructure",
+  "Administration",
+  "Library",
+  "Transport",
+  "Examination",
+  "Other"
+];
 export const ISSUE_STATUS = ["open", "in_progress", "resolved", "closed"];
 
 const LIKE_THROTTLE_MS = 600;
@@ -70,13 +81,7 @@ export async function createIssue(title, description, images = [], category, cur
     description: normalizeText(description),
     images: imageUrls,
     category: category || null,
-    audioUrl: options?.audioUrl || null,
-    isAIRefined: Boolean(options?.isAIRefined),
-    aiSummary: normalizeText(options?.aiSummary || ""),
-    refinedBy: options?.refinedBy || "user",
-    keywords: Array.isArray(options?.keywords) ? options.keywords : [],
-    manualAssignedAuthorities: Array.isArray(options?.manualAssignedAuthorities) ? options.manualAssignedAuthorities : [],
-    isVoiceReport: Boolean(options?.isVoiceReport)
+    manualAssignedAuthorities: Array.isArray(options?.manualAssignedAuthorities) ? options.manualAssignedAuthorities : []
   };
 
   const result = await apiPost("/api/issues", payload);
@@ -218,6 +223,98 @@ export async function updateIssue(issueId, userId, { title, description, categor
     category,
     userId
   });
+}
+
+function containsAny(text, keywords) {
+  const hay = String(text || "").toLowerCase();
+  return keywords.some((keyword) => hay.includes(keyword));
+}
+
+export function generatePossibleSolutions(issue) {
+  const category = String(issue?.category || "").toLowerCase();
+  const text = `${issue?.title || ""} ${issue?.description || ""}`.toLowerCase();
+
+  const byCategory = {
+    academic: [
+      "Review course material mismatch with current syllabus and share corrected resources with the class.",
+      "Schedule a coordinator meeting with student representatives within 48 hours.",
+      "Issue a timeline update for pending academic action and publish it on the student portal."
+    ],
+    hostel: [
+      "Assign a hostel warden inspection slot and log findings with room/block details.",
+      "Create a maintenance ticket with priority and completion ETA for hostel facilities.",
+      "Share interim mitigation steps with affected hostel residents until full resolution."
+    ],
+    canteen: [
+      "Conduct a hygiene and quality audit for the canteen vendor this week.",
+      "Review meal pricing and serving consistency against approved college guidelines.",
+      "Collect student feedback for one week and implement top recurring improvements."
+    ],
+    faculty: [
+      "Arrange a mediated discussion between faculty coordinator and class representatives.",
+      "Document concern points and convert them into an actionable follow-up checklist.",
+      "Escalate unresolved conduct or teaching concerns to the HoD with evidence."
+    ],
+    infrastructure: [
+      "Create a facilities work order with exact location, photos, and urgency level.",
+      "Set a repair window and publish expected downtime to affected departments.",
+      "Verify completion on-site and attach closure proof before marking resolved."
+    ],
+    administration: [
+      "Route the complaint to the responsible office with a strict response deadline.",
+      "Publish required documents/process steps clearly to avoid repeat complaints.",
+      "Track this case in weekly admin review until closure confirmation."
+    ],
+    library: [
+      "Audit the reported library service gap and assign owner-level accountability.",
+      "Update issue queue visibility for students (pending, in progress, resolved).",
+      "Pilot an immediate workaround while long-term correction is implemented."
+    ],
+    transport: [
+      "Verify route timing adherence for the affected transport schedule.",
+      "Coordinate with transport vendor and publish corrected pickup/drop timetable.",
+      "Collect attendance impact data to prioritize route-level changes."
+    ],
+    examination: [
+      "Validate the exam-related complaint against official exam cell records.",
+      "Issue a formal clarification notice to affected students with next steps.",
+      "Set and communicate a grievance resolution deadline with responsible officer."
+    ]
+  };
+
+  let ideas = byCategory[category] || [];
+  if (ideas.length === 0 && containsAny(text, ["hostel", "room", "mess"])) ideas = byCategory.hostel;
+  if (ideas.length === 0 && containsAny(text, ["canteen", "food", "meal"])) ideas = byCategory.canteen;
+  if (ideas.length === 0 && containsAny(text, ["exam", "result", "marks"])) ideas = byCategory.examination;
+  if (ideas.length === 0 && containsAny(text, ["faculty", "teacher", "class"])) ideas = byCategory.faculty;
+  if (ideas.length === 0) {
+    ideas = [
+      "Assign the complaint to the correct department owner with a defined SLA.",
+      "Add a short action plan and communicate the timeline to affected students.",
+      "Confirm completion with evidence and update complaint status immediately."
+    ];
+  }
+
+  return ideas.slice(0, 3).map((entry, index) => ({
+    id: `generated-${issue?.id || "issue"}-${index + 1}`,
+    text: entry,
+    source: "generated",
+    applied: false,
+    appliedBy: "",
+    appliedAt: null
+  }));
+}
+
+export async function updatePossibleSolutions(issueId, solutions, note = "") {
+  const payload = {
+    solutions: Array.isArray(solutions) ? solutions : [],
+    note: normalizeText(note)
+  };
+  return apiPatch(`/api/issues/${issueId}/possible-solutions`, payload);
+}
+
+export async function generatePossibleSolutionsWithAI(issueId) {
+  return apiPost(`/api/issues/${issueId}/possible-solutions/generate`, {});
 }
 
 export function formatTimestamp(value) {

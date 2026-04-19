@@ -34,9 +34,9 @@ export default function AppStack() {
       }}
     >
       <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="Feed" component={FeedScreen} options={{ title: "Issues Feed" }} />
-      <Stack.Screen name="CreateIssue" component={CreateIssueScreen} options={{ title: "Report Issue" }} />
-      <Stack.Screen name="IssueDetail" component={IssueDetailScreen} options={{ title: "Issue Detail" }} />
+      <Stack.Screen name="Feed" component={FeedScreen} options={{ title: "Complaints Feed" }} />
+      <Stack.Screen name="CreateIssue" component={CreateIssueScreen} options={{ title: "File Complaint" }} />
+      <Stack.Screen name="IssueDetail" component={IssueDetailScreen} options={{ title: "Complaint Detail" }} />
       <Stack.Screen
         name="AuthorityDashboard"
         component={AuthorityDashboardScreen}

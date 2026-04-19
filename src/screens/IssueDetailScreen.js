@@ -329,41 +329,7 @@ export default function IssueDetailScreen({ route, navigation }) {
 
             <View style={{ flexDirection: "row", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
               <CategoryBadge category={issue.category} />
-              {issue.isVoiceReport ? (
-                <View style={{ backgroundColor: colors.infoLight, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 }}>
-                  <Text style={{ color: colors.info, fontSize: 11, fontWeight: "700" }}>Voice Report</Text>
-                </View>
-              ) : null}
-              {issue.isAIRefined ? (
-                <View style={{ backgroundColor: colors.accentLight, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 }}>
-                  <Text style={{ color: colors.accent, fontSize: 11, fontWeight: "700" }}>AI-enhanced</Text>
-                </View>
-              ) : null}
-            </View>
-
-            {issue.aiSummary ? (
-              <View style={{
-                marginTop: 14,
-                backgroundColor: colors.surfaceAlt,
-                borderRadius: 12,
-                padding: 14,
-                borderLeftWidth: 3,
-                borderLeftColor: colors.primary
-              }}>
-                <Text style={{ fontWeight: "700", color: colors.text, marginBottom: 4, fontSize: 13 }}>AI Summary</Text>
-                <Text style={{ color: colors.textSecondary, lineHeight: 20, fontSize: 14 }}>{issue.aiSummary}</Text>
               </View>
-            ) : null}
-
-            {Array.isArray(issue.keywords) && issue.keywords.length > 0 ? (
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 12 }}>
-                {issue.keywords.map((kw) => (
-                  <View key={kw} style={{ backgroundColor: colors.surfaceAlt, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 }}>
-                    <Text style={{ color: colors.textTertiary, fontSize: 12, fontWeight: "500" }}>#{kw}</Text>
-                  </View>
-                ))}
-              </View>
-            ) : null}
 
             <View style={{ height: 1, backgroundColor: colors.borderLight, marginVertical: 14 }} />
 
@@ -518,7 +484,7 @@ export default function IssueDetailScreen({ route, navigation }) {
           <TextInput
             value={statusNote}
             onChangeText={setStatusNote}
-            placeholder="Optional note (e.g., Fixed the pothole today)"
+            placeholder="Optional note (e.g., Hostel plumbing repaired and verified)"
             placeholderTextColor={colors.textTertiary}
             multiline
             style={[base, { marginTop: 10, minHeight: 80, textAlignVertical: "top" }]}
@@ -778,3 +744,4 @@ export default function IssueDetailScreen({ route, navigation }) {
     </ScrollView>
   );
 }
+

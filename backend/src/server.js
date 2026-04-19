@@ -12,6 +12,15 @@ const app = express();
 const PORT = Number(process.env.PORT || 4000);
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
 const SUPER_ADMIN_EMAIL = "superadmin@communityapp.com";
+const NIM_BASE_URL = String(process.env.NIM_BASE_URL || "https://integrate.api.nvidia.com/v1").replace(/\/+$/, "");
+const NIM_MODEL = String(process.env.NIM_MODEL || "meta/llama-3.3-70b-instruct");
+const NIM_API_KEY = String(process.env.NIM_API_KEY || process.env.NVIDIA_API_KEY || "");
+const NIM_FALLBACK_MODELS = String(
+  process.env.NIM_FALLBACK_MODELS ||
+  "meta/llama-3.1-70b-instruct,meta/llama-3.1-8b-instruct,mistralai/mixtral-8x7b-instruct-v0.1"
+).split(",").map((entry) => entry.trim()).filter(Boolean);
+const AI_TIMEOUT_MS = Math.max(4000, Number(process.env.AI_TIMEOUT_MS || 30000));
+let nimClientModulePromise = null;
 
 const uploadsDir = path.join(__dirname, "..", "uploads");
 fs.mkdirSync(uploadsDir, { recursive: true });
@@ -22,8 +31,7 @@ app.use("/uploads", express.static(uploadsDir));
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const sub = req.path.includes("voice") ? "voice" : "images";
-    const dir = path.join(uploadsDir, sub);
+    const dir = path.join(uploadsDir, "images");
     fs.mkdirSync(dir, { recursive: true });
     cb(null, dir);
   },
@@ -40,6 +48,98 @@ const j = (v, fallback) => {
 const s = (v) => String(v || "").replace(/<script.*?>.*?<\/script>/gi, "").replace(/[<>]/g, "").trim();
 const now = () => Date.now();
 const id = (p = "id") => `${p}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+
+function trimTo(value, max = 400) {
+  return s(String(value || "")).slice(0, max);
+}
+
+function parseAiTextList(raw) {
+  if (!raw) return [];
+  const text = String(raw).trim();
+  let parsed = null;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    const start = text.indexOf("[");
+    const end = text.lastIndexOf("]");
+    if (start >= 0 && end > start) {
+      try {
+        parsed = JSON.parse(text.slice(start, end + 1));
+      } catch {
+        parsed = null;
+      }
+    }
+  }
+
+  const arr = Array.isArray(parsed) ? parsed : [];
+  const normalized = arr
+    .map((item) => {
+      if (typeof item === "string") return trimTo(item, 220);
+      if (item && typeof item === "object") return trimTo(item.text || item.solution || item.step || "", 220);
+      return "";
+    })
+    .filter((entry) => entry.length >= 8);
+
+  return [...new Set(normalized)].slice(0, 6);
+}
+
+function buildAiPrompt(issue) {
+  return [
+    "You are helping a college complaint authority resolve a student complaint.",
+    "Return JSON array only. No markdown. No explanation.",
+    "Each item must be one practical action step (8-180 chars).",
+    "Focus on realistic and policy-safe institutional actions.",
+    "",
+    `Title: ${trimTo(issue.title, 180)}`,
+    `Category: ${trimTo(issue.category || "Other", 60)}`,
+    `Status: ${trimTo(issue.status || "open", 30)}`,
+    `Location: ${trimTo(issue.location || "N/A", 80)}`,
+    `Description: ${trimTo(issue.description, 1200)}`,
+    "",
+    "Generate 4-6 actionable solution steps."
+  ].join("\n");
+}
+
+async function getNimClientModule() {
+  if (!nimClientModulePromise) {
+    nimClientModulePromise = import("./nim-client.mjs");
+  }
+  return nimClientModulePromise;
+}
+
+async function generateAiSolutions(issue) {
+  const prompt = buildAiPrompt(issue);
+  const systemPrompt = "You generate concise institutional resolution steps. Return only valid JSON array of strings.";
+  if (!NIM_API_KEY) {
+    throw new Error("NIM API key missing. Set NIM_API_KEY or NVIDIA_API_KEY in backend environment.");
+  }
+  const { createNimChatCompletion } = await getNimClientModule();
+  const aiResponse = await createNimChatCompletion({
+    apiKey: NIM_API_KEY,
+    baseURL: NIM_BASE_URL,
+    model: NIM_MODEL,
+    fallbackModels: NIM_FALLBACK_MODELS,
+    systemPrompt,
+    userPrompt: prompt,
+    temperature: 0.2,
+    topP: 0.7,
+    maxTokens: 1024,
+    timeoutMs: AI_TIMEOUT_MS
+  });
+  const outputText = String(aiResponse?.text || "");
+  console.log("debug, ", outputText)
+
+  const entries = parseAiTextList(outputText);
+  if (entries.length === 0) {
+    throw new Error("AI did not return valid solution suggestions.");
+  }
+
+  return {
+    provider: "nim",
+    model: String(aiResponse?.model || NIM_MODEL),
+    entries
+  };
+}
 
 function toUser(row) {
   if (!row) return null;
@@ -68,6 +168,14 @@ function toUser(row) {
 }
 
 function toIssue(row) {
+  const possibleSolutionsPayload = j(row.possible_solutions_json, { solutions: [], note: "" });
+  const possibleSolutions = Array.isArray(possibleSolutionsPayload)
+    ? possibleSolutionsPayload
+    : (possibleSolutionsPayload?.solutions || []);
+  const possibleSolutionsNote = Array.isArray(possibleSolutionsPayload)
+    ? ""
+    : s(possibleSolutionsPayload?.note || "");
+
   return {
     id: row.id,
     title: row.title,
@@ -93,6 +201,8 @@ function toIssue(row) {
     refinedBy: row.refined_by || "user",
     keywords: j(row.keywords_json, []),
     isVoiceReport: Boolean(row.is_voice_report),
+    possibleSolutions,
+    possibleSolutionsNote,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
@@ -327,31 +437,6 @@ app.post("/api/upload/images", auth, upload.array("images", 5), async (req, res)
   res.json({ urls });
 });
 
-app.post("/api/voice/process", auth, upload.single("audio"), async (req, res) => {
-  const text = s(req.body.fallbackText || "");
-  const channelId = s(req.body.channelId || req.user.channelId);
-  const audioUrl = req.file ? `/uploads/voice/${path.basename(req.file.path)}` : "";
-  const transcription = text || "Voice transcription placeholder. Configure STT provider keys for production.";
-  const refined = transcription.charAt(0).toUpperCase() + transcription.slice(1);
-  const summary = refined.split(/(?<=[.!?])\s+/).slice(0, 2).join(" ");
-
-  const kws = ["pothole", "road", "water", "drain", "electricity", "garbage", "health"];
-  const keywords = kws.filter((k) => refined.toLowerCase().includes(k));
-
-  const db = await initDb();
-  const authorities = await db.all("SELECT id, name FROM users WHERE channel_id = ? AND role = 'Authority' AND status = 'active' LIMIT 6", channelId);
-
-  res.json({
-    audioUrl,
-    transcription,
-    refined,
-    summary,
-    keywords: [...new Set(keywords)],
-    suggestedAuthorities: authorities,
-    usageWarning: ""
-  });
-});
-
 app.post("/api/issues", auth, async (req, res) => {
   const db = await initDb();
   const user = await db.get("SELECT * FROM users WHERE id = ?", req.user.uid);
@@ -374,9 +459,8 @@ app.post("/api/issues", auth, async (req, res) => {
 
   await db.run(
     `INSERT INTO issues (id, title, description, author_id, author_name, author_avatar, author_role, channel_id, status, category, location,
-      images_json, assigned_authorities_json, likes_json, likes_count, comments_count, progress_updates_count, status_history_json, audio_url,
-      is_ai_refined, ai_summary, refined_by, keywords_json, is_voice_report, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, NULL, ?, ?, '[]', 0, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      images_json, assigned_authorities_json, likes_json, likes_count, comments_count, progress_updates_count, status_history_json, possible_solutions_json, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, NULL, ?, ?, '[]', 0, 0, 0, ?, ?, ?, ?)`,
     issueId,
     title,
     description,
@@ -389,12 +473,7 @@ app.post("/api/issues", auth, async (req, res) => {
     JSON.stringify(images),
     JSON.stringify(assigned),
     JSON.stringify(history),
-    req.body.audioUrl || null,
-    req.body.isAIRefined ? 1 : 0,
-    s(req.body.aiSummary || ""),
-    s(req.body.refinedBy || "user"),
-    JSON.stringify(Array.isArray(req.body.keywords) ? req.body.keywords : []),
-    req.body.isVoiceReport ? 1 : 0,
+    JSON.stringify({ solutions: [], note: "" }),
     t,
     t
   );
@@ -555,6 +634,121 @@ app.post("/api/issues/:id/status", auth, role("Authority", "Head", "SuperAdmin")
   await db.run("UPDATE issues SET status = ?, status_history_json = ?, updated_at = ? WHERE id = ?", s(req.body.status), JSON.stringify(history), now(), issue.id);
   await notify(db, { userId: issue.author_id, issueId: issue.id, title: "Issue Status Updated", body: `Issue status changed to ${s(req.body.status).replace("_", " ")}.`, type: "issue_status_changed" });
   res.json({ ok: true });
+});
+
+app.patch("/api/issues/:id/possible-solutions", auth, role("Authority", "Head", "SuperAdmin"), async (req, res) => {
+  const db = await initDb();
+  const issue = await db.get("SELECT * FROM issues WHERE id = ?", req.params.id);
+  if (!issue) return res.status(404).json({ error: "Issue not found" });
+  if (req.user.role !== "SuperAdmin" && issue.channel_id !== req.user.channelId) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+
+  const solutions = (Array.isArray(req.body.solutions) ? req.body.solutions : [])
+    .slice(0, 12)
+    .map((item) => {
+      const text = s(item?.text || "");
+      if (text.length < 5) return null;
+      return {
+        id: s(item?.id || id("sol")),
+        text,
+        source: s(item?.source || "manual") === "generated" ? "generated" : "manual",
+        applied: Boolean(item?.applied),
+        appliedBy: s(item?.appliedBy || ""),
+        appliedAt: Number(item?.appliedAt || 0) || null,
+        updatedAt: now()
+      };
+    })
+    .filter(Boolean);
+
+  const note = s(req.body.note || "");
+  const payload = {
+    solutions,
+    note: note.slice(0, 1500),
+    updatedBy: req.user.uid,
+    updatedAt: now()
+  };
+
+  await db.run(
+    "UPDATE issues SET possible_solutions_json = ?, updated_at = ? WHERE id = ?",
+    JSON.stringify(payload),
+    now(),
+    issue.id
+  );
+  res.json({ possibleSolutions: solutions, possibleSolutionsNote: payload.note });
+});
+
+app.post("/api/issues/:id/possible-solutions/generate", auth, role("Authority", "Head", "SuperAdmin"), async (req, res) => {
+  const db = await initDb();
+  const issue = await db.get("SELECT * FROM issues WHERE id = ?", req.params.id);
+  if (!issue) return res.status(404).json({ error: "Issue not found" });
+  if (req.user.role !== "SuperAdmin" && issue.channel_id !== req.user.channelId) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+
+  try {
+    const aiResult = await generateAiSolutions(issue);
+    const currentPayload = j(issue.possible_solutions_json, { solutions: [], note: "" });
+    const existingSolutions = Array.isArray(currentPayload)
+      ? currentPayload
+      : (Array.isArray(currentPayload?.solutions) ? currentPayload.solutions : []);
+    const preserved = existingSolutions.filter((item) => item && (item.source !== "generated" || Boolean(item.applied)));
+
+    const generated = aiResult.entries.map((text, index) => ({
+      id: id(`sol_ai_${index + 1}`),
+      text,
+      source: "generated",
+      applied: false,
+      appliedBy: "",
+      appliedAt: null,
+      updatedAt: now()
+    }));
+
+    const dedup = new Set();
+    const solutions = [...preserved, ...generated]
+      .map((item) => ({
+        id: s(item?.id || id("sol")),
+        text: trimTo(item?.text || "", 220),
+        source: s(item?.source || "manual") === "generated" ? "generated" : "manual",
+        applied: Boolean(item?.applied),
+        appliedBy: trimTo(item?.appliedBy || "", 80),
+        appliedAt: Number(item?.appliedAt || 0) || null,
+        updatedAt: now()
+      }))
+      .filter((item) => item.text.length >= 8)
+      .filter((item) => {
+        const key = item.text.toLowerCase();
+        if (dedup.has(key)) return false;
+        dedup.add(key);
+        return true;
+      })
+      .slice(0, 12);
+
+    const payload = {
+      solutions,
+      note: trimTo(Array.isArray(currentPayload) ? "" : currentPayload?.note || "", 1500),
+      updatedBy: req.user.uid,
+      updatedAt: now()
+    };
+
+    await db.run(
+      "UPDATE issues SET possible_solutions_json = ?, updated_at = ? WHERE id = ?",
+      JSON.stringify(payload),
+      now(),
+      issue.id
+    );
+
+    return res.json({
+      possibleSolutions: solutions,
+      possibleSolutionsNote: payload.note,
+      aiProvider: aiResult.provider,
+      aiModel: aiResult.model
+    });
+  } catch (error) {
+    const message = String(error?.message || "Failed to generate AI solutions.");
+    const statusCode = Number(error?.statusCode || 0) || (message.includes("NIM API key missing") ? 503 : 502);
+    return res.status(statusCode).json({ error: message });
+  }
 });
 
 app.get("/api/issues/:id/status-history", auth, async (req, res) => {

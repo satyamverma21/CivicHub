@@ -29,8 +29,8 @@ export default function AuthStack() {
     >
       <Stack.Screen name="Splash" component={SplashScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="HeadSignup" component={HeadSignupScreen} options={{ title: "Create Organization" }} />
-      <Stack.Screen name="UserSignup" component={UserSignupScreen} options={{ title: "Join Community" }} />
+      <Stack.Screen name="HeadSignup" component={HeadSignupScreen} options={{ title: "Create College" }} />
+      <Stack.Screen name="UserSignup" component={UserSignupScreen} options={{ title: "Join College" }} />
     </Stack.Navigator>
   );
 }

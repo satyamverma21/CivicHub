@@ -14,7 +14,15 @@ import { useFocusEffect } from "@react-navigation/native";
 import { Picker } from "@react-native-picker/picker";
 import { useNetInfo } from "@react-native-community/netinfo";
 import IssueCard from "../components/IssueCard";
-import { ISSUE_CATEGORIES, getIssuesFeed, likeIssue, syncOfflineActions } from "../services/issues";
+import {
+  ISSUE_CATEGORIES,
+  generatePossibleSolutions,
+  generatePossibleSolutionsWithAI,
+  getIssuesFeed,
+  likeIssue,
+  syncOfflineActions,
+  updatePossibleSolutions
+} from "../services/issues";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 
@@ -56,10 +64,163 @@ function useDebouncedValue(value, delay = 300) {
   return debounced;
 }
 
+function PossibleSolutionsPanel({
+  issue,
+  colors,
+  saving,
+  generating,
+  note,
+  manualDraft,
+  onChangeNote,
+  onChangeDraft,
+  onToggleApplied,
+  onSaveNote,
+  onAddManual,
+  onGenerateAI
+}) {
+  const solutions = Array.isArray(issue.possibleSolutions) && issue.possibleSolutions.length > 0
+    ? issue.possibleSolutions
+    : generatePossibleSolutions(issue);
+
+  return (
+    <View style={{
+      marginTop: -4,
+      marginBottom: 14,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 14,
+      padding: 14
+    }}>
+      <Text style={{ color: colors.text, fontWeight: "800", fontSize: 14 }}>Possible Solutions (Authority/Admin Only)</Text>
+      <Text style={{ color: colors.textTertiary, fontSize: 12, marginTop: 3 }}>
+        Context-aware actions to resolve this complaint faster.
+      </Text>
+
+      <Pressable
+        onPress={onGenerateAI}
+        disabled={saving || generating}
+        style={{
+          marginTop: 10,
+          borderRadius: 10,
+          paddingVertical: 10,
+          borderWidth: 1.2,
+          borderColor: colors.accent,
+          backgroundColor: colors.accentLight,
+          alignItems: "center",
+          opacity: saving || generating ? 0.6 : 1
+        }}
+      >
+        <Text style={{ color: colors.accent, fontWeight: "700", fontSize: 13 }}>
+          {generating ? "Generating with AI..." : "Generate with AI"}
+        </Text>
+      </Pressable>
+
+      <View style={{ marginTop: 10, gap: 8 }}>
+        {solutions.map((solution) => {
+          const applied = Boolean(solution.applied);
+          return (
+            <View key={solution.id} style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 10 }}>
+              <Text style={{ color: colors.text, fontSize: 13, lineHeight: 18 }}>{solution.text}</Text>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
+                <Text style={{ color: colors.textTertiary, fontSize: 11 }}>
+                  {solution.source === "generated" ? "AI suggested" : "Manual"}
+                </Text>
+                <Pressable
+                  onPress={() => onToggleApplied(solution.id, !applied, solutions)}
+                  disabled={saving}
+                  style={{
+                    borderRadius: 8,
+                    paddingHorizontal: 10,
+                    paddingVertical: 6,
+                    backgroundColor: applied ? colors.accentLight : colors.surfaceAlt,
+                    borderWidth: 1,
+                    borderColor: applied ? colors.accent : colors.border
+                  }}
+                >
+                  <Text style={{ color: applied ? colors.accent : colors.textSecondary, fontWeight: "700", fontSize: 12 }}>
+                    {applied ? "Applied" : "Mark Applied"}
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          );
+        })}
+      </View>
+
+      <TextInput
+        value={manualDraft}
+        onChangeText={onChangeDraft}
+        placeholder="Add manual solution step"
+        placeholderTextColor={colors.textTertiary}
+        style={{
+          marginTop: 12,
+          borderWidth: 1.5,
+          borderColor: colors.border,
+          borderRadius: 10,
+          padding: 10,
+          color: colors.text,
+          backgroundColor: colors.surface
+        }}
+      />
+
+      <Pressable
+        onPress={() => onAddManual(solutions)}
+        disabled={saving}
+        style={{
+          marginTop: 8,
+          borderRadius: 10,
+          paddingVertical: 10,
+          backgroundColor: colors.primary,
+          alignItems: "center",
+          opacity: saving ? 0.6 : 1
+        }}
+      >
+        <Text style={{ color: "#FFF", fontWeight: "700", fontSize: 13 }}>Add Manual Solution</Text>
+      </Pressable>
+
+      <TextInput
+        value={note}
+        onChangeText={onChangeNote}
+        placeholder="Internal resolution note (optional)"
+        placeholderTextColor={colors.textTertiary}
+        multiline
+        style={{
+          marginTop: 10,
+          borderWidth: 1.5,
+          borderColor: colors.border,
+          borderRadius: 10,
+          padding: 10,
+          minHeight: 72,
+          textAlignVertical: "top",
+          color: colors.text,
+          backgroundColor: colors.surface
+        }}
+      />
+
+      <Pressable
+        onPress={() => onSaveNote(solutions)}
+        disabled={saving}
+        style={{
+          marginTop: 8,
+          borderRadius: 10,
+          paddingVertical: 10,
+          borderWidth: 1.2,
+          borderColor: colors.primary,
+          alignItems: "center",
+          opacity: saving ? 0.6 : 1
+        }}
+      >
+        <Text style={{ color: colors.primary, fontWeight: "700", fontSize: 13 }}>Save Note</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 const SAVED_FILTER_KEY = "feed_saved_filters_v1";
 
 export default function FeedScreen({ navigation }) {
-  const { currentUser, channelId, showErrorToast } = useAuth();
+  const { currentUser, channelId, userRole, showErrorToast } = useAuth();
   const { colors, shadows } = useTheme();
   const netInfo = useNetInfo();
   const [issues, setIssues] = useState([]);
@@ -76,9 +237,14 @@ export default function FeedScreen({ navigation }) {
   const [authorFilter, setAuthorFilter] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const debouncedSearch = useDebouncedValue(searchText, 300);
+  const [solutionDraftByIssue, setSolutionDraftByIssue] = useState({});
+  const [solutionNoteByIssue, setSolutionNoteByIssue] = useState({});
+  const [savingSolutionsByIssue, setSavingSolutionsByIssue] = useState({});
+  const [generatingSolutionsByIssue, setGeneratingSolutionsByIssue] = useState({});
 
-  const issueShareBase = useMemo(() => "https://communityapp.local/issues", []);
+  const debouncedSearch = useDebouncedValue(searchText, 300);
+  const issueShareBase = useMemo(() => "https://college-complaints.local/complaints", []);
+  const canViewSolutionsPanel = ["Authority", "Head", "SuperAdmin", "Admin"].includes(userRole || "");
 
   const loadSavedFilters = useCallback(async () => {
     const raw = await AsyncStorage.getItem(SAVED_FILTER_KEY);
@@ -177,6 +343,46 @@ export default function FeedScreen({ navigation }) {
     }
   };
 
+  const persistSolutions = async (issue, nextSolutions, noteValue) => {
+    setSavingSolutionsByIssue((prev) => ({ ...prev, [issue.id]: true }));
+    try {
+      const result = await updatePossibleSolutions(issue.id, nextSolutions, noteValue);
+      setIssues((prev) => prev.map((item) => (
+        item.id === issue.id
+          ? {
+            ...item,
+            possibleSolutions: result?.possibleSolutions || nextSolutions,
+            possibleSolutionsNote: result?.possibleSolutionsNote ?? noteValue
+          }
+          : item
+      )));
+    } catch (error) {
+      showErrorToast(error);
+    } finally {
+      setSavingSolutionsByIssue((prev) => ({ ...prev, [issue.id]: false }));
+    }
+  };
+
+  const generateAiSolutions = async (issue) => {
+    setGeneratingSolutionsByIssue((prev) => ({ ...prev, [issue.id]: true }));
+    try {
+      const result = await generatePossibleSolutionsWithAI(issue.id);
+      setIssues((prev) => prev.map((item) => (
+        item.id === issue.id
+          ? {
+            ...item,
+            possibleSolutions: result?.possibleSolutions || item.possibleSolutions || [],
+            possibleSolutionsNote: result?.possibleSolutionsNote ?? item.possibleSolutionsNote ?? ""
+          }
+          : item
+      )));
+    } catch (error) {
+      showErrorToast(error);
+    } finally {
+      setGeneratingSolutionsByIssue((prev) => ({ ...prev, [issue.id]: false }));
+    }
+  };
+
   const filteredIssues = useMemo(() => {
     let items = [...issues];
 
@@ -233,18 +439,15 @@ export default function FeedScreen({ navigation }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      {/* Offline banner */}
       {!netInfo.isConnected ? (
         <View style={{ backgroundColor: colors.warningLight, paddingVertical: 10, paddingHorizontal: 16 }}>
           <Text style={{ color: colors.warningText, textAlign: "center", fontWeight: "600", fontSize: 13 }}>
-            ⚠ Offline mode — Showing cached data
+            Offline mode: showing cached complaints
           </Text>
         </View>
       ) : null}
 
-      {/* Top bar */}
       <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8, gap: 10 }}>
-        {/* Search */}
         <View style={{
           flexDirection: "row",
           backgroundColor: colors.surface,
@@ -254,11 +457,10 @@ export default function FeedScreen({ navigation }) {
           alignItems: "center",
           paddingHorizontal: 14
         }}>
-          <Text style={{ color: colors.textTertiary, fontSize: 16, marginRight: 8 }}>🔍</Text>
           <TextInput
             value={searchText}
             onChangeText={setSearchText}
-            placeholder="Search issues..."
+            placeholder="Search complaints..."
             placeholderTextColor={colors.textTertiary}
             style={{
               flex: 1,
@@ -269,7 +471,6 @@ export default function FeedScreen({ navigation }) {
           />
         </View>
 
-        {/* Action chips */}
         <View style={{ flexDirection: "row", gap: 8 }}>
           <Pressable
             onPress={() => setShowFilters((prev) => !prev)}
@@ -284,7 +485,7 @@ export default function FeedScreen({ navigation }) {
             }}
           >
             <Text style={{ fontWeight: "600", color: showFilters ? colors.primary : colors.text, fontSize: 14 }}>
-              {showFilters ? "Hide Filters" : "Filter & Sort"}
+              {showFilters ? "Hide Filters" : "Filter and Sort"}
             </Text>
           </Pressable>
           <Pressable
@@ -297,12 +498,11 @@ export default function FeedScreen({ navigation }) {
               alignItems: "center"
             }}
           >
-            <Text style={{ fontWeight: "700", color: "#FFFFFF", fontSize: 14 }}>+ Report Issue</Text>
+            <Text style={{ fontWeight: "700", color: "#FFFFFF", fontSize: 14 }}>+ File Complaint</Text>
           </Pressable>
         </View>
       </View>
 
-      {/* Filters panel */}
       {showFilters ? (
         <View style={{
           marginHorizontal: 16,
@@ -334,7 +534,7 @@ export default function FeedScreen({ navigation }) {
             </Picker>
           </View>
 
-          <Text style={{ fontWeight: "700", color: colors.text, marginBottom: 6, fontSize: 14 }}>Category</Text>
+          <Text style={{ fontWeight: "700", color: colors.text, marginBottom: 6, fontSize: 14 }}>Department</Text>
           <View style={{ borderWidth: 1.5, borderColor: colors.border, borderRadius: 10, backgroundColor: colors.surface, marginBottom: 10 }}>
             <Picker selectedValue={categoryFilter} onValueChange={(val) => setCategoryFilter(val)} style={{ color: colors.text }}>
               <Picker.Item label="All" value="all" />
@@ -344,7 +544,7 @@ export default function FeedScreen({ navigation }) {
 
           <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
             <TextInput
-              value={authorFilter} onChangeText={setAuthorFilter} placeholder="Author"
+              value={authorFilter} onChangeText={setAuthorFilter} placeholder="Student name"
               placeholderTextColor={colors.textTertiary}
               style={{ flex: 1, borderWidth: 1.5, borderColor: colors.border, borderRadius: 10, padding: 10, color: colors.text, backgroundColor: colors.surface, fontSize: 14 }}
             />
@@ -369,7 +569,6 @@ export default function FeedScreen({ navigation }) {
         </View>
       ) : null}
 
-      {/* Issue list */}
       <FlatList
         data={filteredIssues}
         keyExtractor={(item) => item.id}
@@ -377,19 +576,73 @@ export default function FeedScreen({ navigation }) {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />}
         ListEmptyComponent={
           <View style={{ paddingVertical: 60, alignItems: "center" }}>
-            <Text style={{ fontSize: 40, marginBottom: 12 }}>📭</Text>
-            <Text style={{ color: colors.textSecondary, fontSize: 16, fontWeight: "600" }}>No issues yet</Text>
-            <Text style={{ color: colors.textTertiary, fontSize: 14, marginTop: 4 }}>Be the first to report!</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 16, fontWeight: "600" }}>No complaints yet</Text>
+            <Text style={{ color: colors.textTertiary, fontSize: 14, marginTop: 4 }}>Be the first to file one.</Text>
           </View>
         }
         renderItem={({ item }) => (
-          <IssueCard
-            issue={item}
-            currentUserId={currentUser?.uid}
-            onPress={() => navigation.navigate("IssueDetail", { issueId: item.id })}
-            onLikePress={() => onLike(item.id)}
-            onSharePress={() => onShare(item.id, item.title)}
-          />
+          <View>
+            <IssueCard
+              issue={item}
+              currentUserId={currentUser?.uid}
+              onPress={() => navigation.navigate("IssueDetail", { issueId: item.id })}
+              onLikePress={() => onLike(item.id)}
+              onSharePress={() => onShare(item.id, item.title)}
+            />
+
+            {canViewSolutionsPanel ? (
+              <PossibleSolutionsPanel
+                issue={item}
+                colors={colors}
+                saving={Boolean(savingSolutionsByIssue[item.id])}
+                generating={Boolean(generatingSolutionsByIssue[item.id])}
+                note={solutionNoteByIssue[item.id] ?? item.possibleSolutionsNote ?? ""}
+                manualDraft={solutionDraftByIssue[item.id] || ""}
+                onChangeNote={(value) => setSolutionNoteByIssue((prev) => ({ ...prev, [item.id]: value }))}
+                onChangeDraft={(value) => setSolutionDraftByIssue((prev) => ({ ...prev, [item.id]: value }))}
+                onGenerateAI={() => generateAiSolutions(item)}
+                onToggleApplied={async (solutionId, applied, currentSolutions) => {
+                  const next = currentSolutions.map((sol) => (
+                    sol.id === solutionId
+                      ? {
+                        ...sol,
+                        applied,
+                        appliedBy: applied ? (currentUser?.name || "") : "",
+                        appliedAt: applied ? Date.now() : null
+                      }
+                      : sol
+                  ));
+                  const note = solutionNoteByIssue[item.id] ?? item.possibleSolutionsNote ?? "";
+                  await persistSolutions(item, next, note);
+                }}
+                onSaveNote={async (currentSolutions) => {
+                  const note = solutionNoteByIssue[item.id] ?? item.possibleSolutionsNote ?? "";
+                  await persistSolutions(item, currentSolutions, note);
+                }}
+                onAddManual={async (currentSolutions) => {
+                  const draft = (solutionDraftByIssue[item.id] || "").trim();
+                  if (draft.length < 8) {
+                    showErrorToast(new Error("Manual solution should be at least 8 characters."));
+                    return;
+                  }
+                  const next = [
+                    ...currentSolutions,
+                    {
+                      id: `manual-${Date.now()}`,
+                      text: draft,
+                      source: "manual",
+                      applied: false,
+                      appliedBy: "",
+                      appliedAt: null
+                    }
+                  ];
+                  const note = solutionNoteByIssue[item.id] ?? item.possibleSolutionsNote ?? "";
+                  await persistSolutions(item, next, note);
+                  setSolutionDraftByIssue((prev) => ({ ...prev, [item.id]: "" }));
+                }}
+              />
+            ) : null}
+          </View>
         )}
         ListFooterComponent={
           filteredIssues.length > 0 ? (

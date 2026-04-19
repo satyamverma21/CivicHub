@@ -65,10 +65,10 @@ export default function UserSignupScreen() {
             color: colors.text,
             letterSpacing: -0.5
           }}>
-            Join Community
+            Join College Portal
           </Text>
           <Text style={{ color: colors.textSecondary, marginTop: 4, fontSize: 15 }}>
-            Create your account to get started
+            Create your student or authority account
           </Text>
         </View>
 

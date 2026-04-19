@@ -41,7 +41,7 @@ export default function IssueCard({ issue, onPress, onLikePress, currentUserId, 
 
   useEffect(() => {
     Animated.sequence([
-      Animated.timing(likeScale, { toValue: liked ? 1.3 : 1, duration: 120, useNativeDriver: true }),
+      Animated.timing(likeScale, { toValue: liked ? 1.2 : 1, duration: 120, useNativeDriver: true }),
       Animated.spring(likeScale, { toValue: 1, friction: 4, tension: 120, useNativeDriver: true })
     ]).start();
   }, [liked, likeScale]);
@@ -59,7 +59,6 @@ export default function IssueCard({ issue, onPress, onLikePress, currentUserId, 
         ...(shadows?.md || {})
       }}
     >
-      {/* Author row */}
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1 }}>
           {issue.authorAvatar ? (
@@ -102,7 +101,6 @@ export default function IssueCard({ issue, onPress, onLikePress, currentUserId, 
         </View>
       </View>
 
-      {/* Title + Description */}
       <Text style={{ marginTop: 12, fontSize: 17, fontWeight: "700", color: colors.text, lineHeight: 23 }}>
         {issue.title}
       </Text>
@@ -112,41 +110,13 @@ export default function IssueCard({ issue, onPress, onLikePress, currentUserId, 
         </Text>
       ) : null}
 
-      {/* Badges */}
       <View style={{ flexDirection: "row", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
         <StatusBadge status={issue.status} />
         <CategoryBadge category={issue.category} />
-        {issue.isVoiceReport ? (
-          <View style={{ backgroundColor: colors.infoLight, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 }}>
-            <Text style={{ color: colors.info, fontWeight: "700", fontSize: 11 }}>Voice</Text>
-          </View>
-        ) : null}
-        {issue.isAIRefined ? (
-          <View style={{ backgroundColor: colors.accentLight, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 }}>
-            <Text style={{ color: colors.accent, fontWeight: "700", fontSize: 11 }}>AI-refined</Text>
-          </View>
-        ) : null}
       </View>
-
-      {/* AI Summary */}
-      {issue.aiSummary ? (
-        <View style={{
-          marginTop: 10,
-          backgroundColor: colors.surfaceAlt,
-          borderRadius: 10,
-          padding: 10,
-          borderLeftWidth: 3,
-          borderLeftColor: colors.primary
-        }}>
-          <Text style={{ color: colors.text, fontWeight: "600", fontSize: 13, lineHeight: 18 }}>
-            {issue.aiSummary}
-          </Text>
-        </View>
-      ) : null}
 
       <ImageCarousel images={issue.images || []} />
 
-      {/* Actions */}
       <View style={{
         flexDirection: "row",
         marginTop: 14,
@@ -156,17 +126,19 @@ export default function IssueCard({ issue, onPress, onLikePress, currentUserId, 
         justifyContent: "space-between",
         alignItems: "center"
       }}>
-        <Pressable onPress={onLikePress} accessibilityLabel="Like issue" hitSlop={8} style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+        <Pressable onPress={onLikePress} accessibilityLabel="Like complaint" hitSlop={8} style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
           <Animated.View style={{ transform: [{ scale: likeScale }] }}>
-            <Text style={{ fontSize: 16 }}>{liked ? "❤️" : "🤍"}</Text>
+            <Text style={{ color: liked ? colors.danger : colors.textSecondary, fontWeight: "700", fontSize: 13 }}>
+              {liked ? "Liked" : "Like"}
+            </Text>
           </Animated.View>
           <Text style={{ color: liked ? colors.danger : colors.textSecondary, fontWeight: "600", fontSize: 14 }}>
             {issue.likesCount || 0}
           </Text>
         </Pressable>
 
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-          <Text style={{ fontSize: 14 }}>💬</Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+          <Text style={{ color: colors.textTertiary, fontSize: 13 }}>Comments</Text>
           <Text style={{ color: colors.textSecondary, fontWeight: "600", fontSize: 14 }}>
             {issue.commentsCount || 0}
           </Text>
