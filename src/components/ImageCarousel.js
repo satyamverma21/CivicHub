@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Dimensions, Image, ScrollView, Text, View } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { Dimensions, Image, Modal, Pressable, ScrollView, Text, View } from "react-native";
 import { absoluteUploadUrl } from "../services/issues";
 import { useTheme } from "../context/ThemeContext";
 
@@ -9,10 +9,14 @@ export default function ImageCarousel({
   images = [],
   resolveImageUri,
   onRemoveImage,
-  height = 220
+  height = 220,
+  enableFullscreen = true
 }) {
   const { colors } = useTheme();
   const [activeIndex, setActiveIndex] = useState(0);
+  const [viewerVisible, setViewerVisible] = useState(false);
+  const [viewerIndex, setViewerIndex] = useState(0);
+  const viewerScrollRef = useRef(null);
   const imageWidth = SCREEN_WIDTH - 64;
 
   if (!Array.isArray(images) || images.length === 0) {
@@ -44,6 +48,27 @@ export default function ImageCarousel({
     setActiveIndex(index);
   };
 
+  useEffect(() => {
+    if (!viewerVisible || !viewerScrollRef.current) return;
+    const targetOffset = Math.max(0, viewerIndex) * SCREEN_WIDTH;
+    const timer = setTimeout(() => {
+      viewerScrollRef.current?.scrollTo({ x: targetOffset, animated: false });
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [viewerVisible, viewerIndex]);
+
+  const onViewerScroll = (e) => {
+    const offset = e.nativeEvent.contentOffset.x;
+    const index = Math.round(offset / SCREEN_WIDTH);
+    setViewerIndex(index);
+  };
+
+  const openViewer = (index) => {
+    if (!enableFullscreen) return;
+    setViewerIndex(index);
+    setViewerVisible(true);
+  };
+
   return (
     <View style={{ marginTop: 12 }}>
       <ScrollView
@@ -56,12 +81,20 @@ export default function ImageCarousel({
       >
         {displayEntries.map((item) => (
           <View key={`${item.uri}-${item.index}`} style={{ width: imageWidth, height }}>
-            <Image
-              source={{ uri: item.uri }}
-              resizeMode="cover"
-              style={{ width: "100%", height: "100%", backgroundColor: colors.surfaceAlt }}
-              accessibilityLabel={`Issue image ${item.index + 1}`}
-            />
+            <Pressable
+              onPress={(event) => {
+                event?.stopPropagation?.();
+                openViewer(item.index);
+              }}
+              style={{ width: "100%", height: "100%" }}
+            >
+              <Image
+                source={{ uri: item.uri }}
+                resizeMode="cover"
+                style={{ width: "100%", height: "100%", backgroundColor: colors.surfaceAlt }}
+                accessibilityLabel={`Issue image ${item.index + 1}`}
+              />
+            </Pressable>
             {typeof onRemoveImage === "function" ? (
               <View style={{ position: "absolute", bottom: 10, left: 0, right: 0, alignItems: "center" }}>
                 <View
@@ -100,6 +133,48 @@ export default function ImageCarousel({
           ))}
         </View>
       ) : null}
+
+      <Modal
+        visible={viewerVisible}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setViewerVisible(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.95)" }}>
+          <View style={{ paddingTop: 44, paddingHorizontal: 16, paddingBottom: 8, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+            <Text style={{ color: "#FFFFFF", fontSize: 14, fontWeight: "700" }}>
+              {viewerIndex + 1} / {displayEntries.length}
+            </Text>
+            <Pressable onPress={() => setViewerVisible(false)} hitSlop={10}>
+              <Text style={{ color: "#FFFFFF", fontSize: 22, fontWeight: "700" }}>×</Text>
+            </Pressable>
+          </View>
+
+          <ScrollView
+            ref={viewerScrollRef}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onScroll={onViewerScroll}
+            scrollEventThrottle={16}
+            style={{ flex: 1 }}
+          >
+            {displayEntries.map((item) => (
+              <View
+                key={`viewer-${item.uri}-${item.index}`}
+                style={{ width: SCREEN_WIDTH, height: "100%", justifyContent: "center", alignItems: "center" }}
+              >
+                <Image
+                  source={{ uri: item.uri }}
+                  resizeMode="contain"
+                  style={{ width: SCREEN_WIDTH, height: "100%" }}
+                  accessibilityLabel={`Expanded issue image ${item.index + 1}`}
+                />
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      </Modal>
     </View>
   );
 }
