@@ -4,3 +4,9 @@ node_modules/
 npm-debug.log*
 .agent
 .github
+*.md
+./backend/data.sqlite-shm
+./backend/data.sqlite-wal
+./backend/data.sqlite
+
+install-svg.bat

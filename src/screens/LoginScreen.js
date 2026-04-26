@@ -4,6 +4,7 @@ import AuthInput from "../components/AuthInput";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { pressFeedbackStyle } from "../styles";
+import { ShieldCheckIcon } from "../components/Icons";
 
 export default function LoginScreen({ navigation }) {
   const { login, showErrorToast } = useAuth();
@@ -49,7 +50,7 @@ export default function LoginScreen({ navigation }) {
             justifyContent: "center",
             marginBottom: 16
           }}>
-            <Text style={{ fontSize: 28, fontWeight: "800", color: "#FFFFFF" }}>D</Text>
+            <ShieldCheckIcon size={36} color="#FFFFFF" strokeWidth={1.5} />
           </View>
           <Text style={{
             fontSize: 28,

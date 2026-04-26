@@ -5,8 +5,19 @@ import { useAuth } from "../context/AuthContext";
 import { apiGet } from "../services/api";
 import { useTheme } from "../context/ThemeContext";
 import { pressFeedbackStyle } from "../styles";
+import {
+  MessageCircleIcon,
+  PlusIcon,
+  BookmarkIcon,
+  BarChartIcon,
+  UsersIcon,
+  SettingsIcon,
+  TagIcon,
+  FilterIcon,
+  UserIcon
+} from "../components/Icons";
 
-function QuickAction({ title, subtitle, onPress, colors, shadows, accentColor }) {
+function QuickAction({ title, subtitle, onPress, colors, shadows, accentColor, icon: IconComponent }) {
   return (
     <Pressable
       onPress={onPress}
@@ -28,8 +39,12 @@ function QuickAction({ title, subtitle, onPress, colors, shadows, accentColor })
         height: 40,
         borderRadius: 12,
         backgroundColor: accentColor || colors.primaryLight,
-        marginBottom: 10
-      }} />
+        marginBottom: 10,
+        alignItems: "center",
+        justifyContent: "center"
+      }}>
+        {IconComponent && <IconComponent size={20} color={colors.primary} strokeWidth={2} />}
+      </View>
       <Text style={{ fontWeight: "700", color: colors.text, fontSize: 15 }}>{title}</Text>
       <Text style={{ color: colors.textTertiary, fontSize: 12, marginTop: 2 }}>{subtitle}</Text>
     </Pressable>
@@ -127,6 +142,7 @@ export default function HomeScreen({ navigation }) {
               onPress={() => navigation.navigate("Feed")}
               colors={colors}
               shadows={shadows}
+              icon={MessageCircleIcon}
             />
             <QuickAction
               title="File Complaint"
@@ -135,6 +151,7 @@ export default function HomeScreen({ navigation }) {
               colors={colors}
               shadows={shadows}
               accentColor={colors.accentLight}
+              icon={PlusIcon}
             />
           </View>
         </View>
@@ -169,6 +186,9 @@ export default function HomeScreen({ navigation }) {
                       backgroundColor: colors.surface,
                       borderRadius: 12,
                       padding: 16,
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 12,
                       borderWidth: colors.mode === "dark" ? 1 : 0,
                       borderColor: colors.cardBorder,
                       ...(shadows?.sm || {})
@@ -176,8 +196,20 @@ export default function HomeScreen({ navigation }) {
                     pressFeedbackStyle(pressed)
                   ]}
                 >
-                  <Text style={{ fontWeight: "700", color: colors.text, fontSize: 15 }}>Personalized Feed</Text>
-                  <Text style={{ color: colors.textTertiary, fontSize: 13 }}>Assigned + department-tagged complaints</Text>
+                  <View style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 10,
+                    backgroundColor: colors.primaryLight,
+                    alignItems: "center",
+                    justifyContent: "center"
+                  }}>
+                    <FilterIcon size={20} color={colors.primary} strokeWidth={2} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontWeight: "700", color: colors.text, fontSize: 15 }}>Personalized Feed</Text>
+                    <Text style={{ color: colors.textTertiary, fontSize: 13 }}>Assigned + department-tagged complaints</Text>
+                  </View>
                 </Pressable>
               </>
             ) : null}
@@ -189,6 +221,9 @@ export default function HomeScreen({ navigation }) {
                   backgroundColor: colors.surface,
                   borderRadius: 12,
                   padding: 16,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 12,
                   borderWidth: colors.mode === "dark" ? 1 : 0,
                   borderColor: colors.cardBorder,
                   ...(shadows?.sm || {})
@@ -196,8 +231,20 @@ export default function HomeScreen({ navigation }) {
                 pressFeedbackStyle(pressed)
               ]}
             >
-              <Text style={{ fontWeight: "700", color: colors.text, fontSize: 15 }}>Authority Dashboard</Text>
-              <Text style={{ color: colors.textTertiary, fontSize: 13 }}>Manage assigned complaints</Text>
+              <View style={{
+                width: 40,
+                height: 40,
+                borderRadius: 10,
+                backgroundColor: colors.primaryLight,
+                alignItems: "center",
+                justifyContent: "center"
+              }}>
+                <BarChartIcon size={20} color={colors.primary} strokeWidth={2} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontWeight: "700", color: colors.text, fontSize: 15 }}>Authority Dashboard</Text>
+                <Text style={{ color: colors.textTertiary, fontSize: 13 }}>Manage assigned complaints</Text>
+              </View>
             </Pressable>
 
             {userRole === "Head" ? (
@@ -208,6 +255,9 @@ export default function HomeScreen({ navigation }) {
                     backgroundColor: colors.surface,
                     borderRadius: 12,
                     padding: 16,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 12,
                     borderWidth: colors.mode === "dark" ? 1 : 0,
                     borderColor: colors.cardBorder,
                     ...(shadows?.sm || {})
@@ -215,8 +265,20 @@ export default function HomeScreen({ navigation }) {
                   pressFeedbackStyle(pressed)
                 ]}
               >
-                <Text style={{ fontWeight: "700", color: colors.text, fontSize: 15 }}>Head Dashboard</Text>
-                <Text style={{ color: colors.textTertiary, fontSize: 13 }}>Approve authorities and monitor resolution</Text>
+                <View style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 10,
+                  backgroundColor: colors.primaryLight,
+                  alignItems: "center",
+                  justifyContent: "center"
+                }}>
+                  <UsersIcon size={20} color={colors.primary} strokeWidth={2} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontWeight: "700", color: colors.text, fontSize: 15 }}>Head Dashboard</Text>
+                  <Text style={{ color: colors.textTertiary, fontSize: 13 }}>Approve authorities and monitor resolution</Text>
+                </View>
               </Pressable>
             ) : null}
 
@@ -228,6 +290,9 @@ export default function HomeScreen({ navigation }) {
                     backgroundColor: colors.surface,
                     borderRadius: 12,
                     padding: 16,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 12,
                     borderWidth: colors.mode === "dark" ? 1 : 0,
                     borderColor: colors.cardBorder,
                     ...(shadows?.sm || {})
@@ -235,8 +300,20 @@ export default function HomeScreen({ navigation }) {
                   pressFeedbackStyle(pressed)
                 ]}
               >
-                <Text style={{ fontWeight: "700", color: colors.text, fontSize: 15 }}>Authority Department Tags</Text>
-                <Text style={{ color: colors.textTertiary, fontSize: 13 }}>Assign one or more department tags per authority</Text>
+                <View style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 10,
+                  backgroundColor: colors.primaryLight,
+                  alignItems: "center",
+                  justifyContent: "center"
+                }}>
+                  <TagIcon size={20} color={colors.primary} strokeWidth={2} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontWeight: "700", color: colors.text, fontSize: 15 }}>Authority Department Tags</Text>
+                  <Text style={{ color: colors.textTertiary, fontSize: 13 }}>Assign one or more department tags per authority</Text>
+                </View>
               </Pressable>
             ) : null}
 
@@ -248,6 +325,9 @@ export default function HomeScreen({ navigation }) {
                     backgroundColor: colors.surface,
                     borderRadius: 12,
                     padding: 16,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 12,
                     borderWidth: colors.mode === "dark" ? 1 : 0,
                     borderColor: colors.cardBorder,
                     ...(shadows?.sm || {})
@@ -255,8 +335,20 @@ export default function HomeScreen({ navigation }) {
                   pressFeedbackStyle(pressed)
                 ]}
               >
-                <Text style={{ fontWeight: "700", color: colors.text, fontSize: 15 }}>Super Admin Panel</Text>
-                <Text style={{ color: colors.textTertiary, fontSize: 13 }}>System-wide college governance</Text>
+                <View style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 10,
+                  backgroundColor: colors.primaryLight,
+                  alignItems: "center",
+                  justifyContent: "center"
+                }}>
+                  <SettingsIcon size={20} color={colors.primary} strokeWidth={2} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontWeight: "700", color: colors.text, fontSize: 15 }}>Super Admin Panel</Text>
+                  <Text style={{ color: colors.textTertiary, fontSize: 13 }}>System-wide college governance</Text>
+                </View>
               </Pressable>
             ) : null}
           </View>
@@ -272,6 +364,9 @@ export default function HomeScreen({ navigation }) {
                 backgroundColor: colors.surface,
                 borderRadius: 12,
                 padding: 16,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 12,
                 borderWidth: colors.mode === "dark" ? 1 : 0,
                 borderColor: colors.cardBorder,
                 ...(shadows?.sm || {})
@@ -279,8 +374,20 @@ export default function HomeScreen({ navigation }) {
               pressFeedbackStyle(pressed)
             ]}
           >
-            <Text style={{ fontWeight: "700", color: colors.text, fontSize: 15 }}>My Issues</Text>
-            <Text style={{ color: colors.textTertiary, fontSize: 13 }}>View your complaints by status</Text>
+            <View style={{
+              width: 40,
+              height: 40,
+              borderRadius: 10,
+              backgroundColor: colors.primaryLight,
+              alignItems: "center",
+              justifyContent: "center"
+            }}>
+              <BookmarkIcon size={20} color={colors.primary} strokeWidth={2} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontWeight: "700", color: colors.text, fontSize: 15 }}>My Issues</Text>
+              <Text style={{ color: colors.textTertiary, fontSize: 13 }}>View your complaints by status</Text>
+            </View>
           </Pressable>
         ) : null}
 
@@ -291,6 +398,9 @@ export default function HomeScreen({ navigation }) {
               backgroundColor: colors.surface,
               borderRadius: 12,
               padding: 16,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 12,
               borderWidth: colors.mode === "dark" ? 1 : 0,
               borderColor: colors.cardBorder,
               ...(shadows?.sm || {})
@@ -298,8 +408,20 @@ export default function HomeScreen({ navigation }) {
             pressFeedbackStyle(pressed)
           ]}
         >
-          <Text style={{ fontWeight: "700", color: colors.text, fontSize: 15 }}>Profile</Text>
-          <Text style={{ color: colors.textTertiary, fontSize: 13 }}>{currentUser?.email || ""}</Text>
+          <View style={{
+            width: 40,
+            height: 40,
+            borderRadius: 10,
+            backgroundColor: colors.primaryLight,
+            alignItems: "center",
+            justifyContent: "center"
+          }}>
+            <UserIcon size={20} color={colors.primary} strokeWidth={2} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontWeight: "700", color: colors.text, fontSize: 15 }}>Profile</Text>
+            <Text style={{ color: colors.textTertiary, fontSize: 13 }}>{currentUser?.email || ""}</Text>
+          </View>
         </Pressable>
 
         <Pressable
@@ -309,6 +431,9 @@ export default function HomeScreen({ navigation }) {
               backgroundColor: colors.surface,
               borderRadius: 12,
               padding: 16,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 12,
               borderWidth: colors.mode === "dark" ? 1 : 0,
               borderColor: colors.cardBorder,
               ...(shadows?.sm || {})
@@ -316,7 +441,19 @@ export default function HomeScreen({ navigation }) {
             pressFeedbackStyle(pressed)
           ]}
         >
-          <Text style={{ fontWeight: "700", color: colors.text, fontSize: 15 }}>Settings</Text>
+          <View style={{
+            width: 40,
+            height: 40,
+            borderRadius: 10,
+            backgroundColor: colors.primaryLight,
+            alignItems: "center",
+            justifyContent: "center"
+          }}>
+            <SettingsIcon size={20} color={colors.primary} strokeWidth={2} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontWeight: "700", color: colors.text, fontSize: 15 }}>Settings</Text>
+          </View>
         </Pressable>
 
         <Pressable

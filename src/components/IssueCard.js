@@ -6,6 +6,7 @@ import StatusBadge from "./StatusBadge";
 import { formatTimestamp } from "../services/issues";
 import { useTheme } from "../context/ThemeContext";
 import { pressFeedbackStyle } from "../styles";
+import { MapPinIcon, HeartIcon, Share2Icon, MessageCircle2Icon } from "./Icons";
 
 function initials(name) {
   const parts = (name || "U").split(" ").filter(Boolean);
@@ -114,9 +115,12 @@ export default function IssueCard({ issue, onPress, onLikePress, currentUserId, 
         </Text>
       ) : null}
       {issue.location ? (
-        <Text style={{ marginTop: 6, color: colors.textTertiary, fontSize: 13 }}>
-          📍 {issue.location}
-        </Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6 }}>
+          <MapPinIcon size={16} color={colors.textTertiary} strokeWidth={2} />
+          <Text style={{ color: colors.textTertiary, fontSize: 13 }}>
+            {issue.location}
+          </Text>
+        </View>
       ) : null}
 
       <View style={{ flexDirection: "row", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
@@ -142,6 +146,9 @@ export default function IssueCard({ issue, onPress, onLikePress, currentUserId, 
           style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", gap: 6 }, pressFeedbackStyle(pressed)]}
         >
           <Animated.View style={{ transform: [{ scale: likeScale }] }}>
+            <HeartIcon size={16} color={liked ? colors.danger : colors.textSecondary} strokeWidth={2} filled={liked} />
+          </Animated.View>
+          <Animated.View style={{ transform: [{ scale: likeScale }] }}>
             <Text style={{ color: liked ? colors.danger : colors.textSecondary, fontWeight: "700", fontSize: 13 }}>
               {liked ? "Liked" : "Like"}
             </Text>
@@ -152,13 +159,15 @@ export default function IssueCard({ issue, onPress, onLikePress, currentUserId, 
         </Pressable>
 
         <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+          <MessageCircle2Icon size={16} color={colors.textSecondary} strokeWidth={2} />
           <Text style={{ color: colors.textTertiary, fontSize: 13 }}>Comments</Text>
           <Text style={{ color: colors.textSecondary, fontWeight: "600", fontSize: 14 }}>
             {issue.commentsCount || 0}
           </Text>
         </View>
 
-        <Pressable onPress={onSharePress} style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", gap: 4 }, pressFeedbackStyle(pressed)]}>
+        <Pressable onPress={onSharePress} style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", gap: 6 }, pressFeedbackStyle(pressed)]}>
+          <Share2Icon size={16} color={colors.primary} strokeWidth={2} />
           <Text style={{ color: colors.primary, fontWeight: "600", fontSize: 14 }}>Share</Text>
         </Pressable>
       </View>
