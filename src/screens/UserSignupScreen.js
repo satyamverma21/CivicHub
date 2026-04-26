@@ -5,6 +5,7 @@ import ChannelIDInput from "../components/ChannelIDInput";
 import RoleSelector from "../components/RoleSelector";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
+import { pressFeedbackStyle } from "../styles";
 
 export default function UserSignupScreen() {
   const { signupUser, showErrorToast } = useAuth();
@@ -74,7 +75,7 @@ export default function UserSignupScreen() {
 
         <View style={{
           backgroundColor: colors.surface,
-          borderRadius: 20,
+          borderRadius: 12,
           padding: 24,
           borderWidth: colors.mode === "dark" ? 1 : 0,
           borderColor: colors.cardBorder,
@@ -110,13 +111,15 @@ export default function UserSignupScreen() {
           <Pressable
             onPress={handleSignup}
             disabled={isSubmitting}
-            style={{
-              backgroundColor: colors.primary,
-              borderRadius: 12,
-              paddingVertical: 15,
-              marginTop: 4,
-              opacity: isSubmitting ? 0.7 : 1
-            }}
+            style={({ pressed }) => [
+              {
+                backgroundColor: colors.primary,
+                borderRadius: 10,
+                paddingVertical: 15,
+                marginTop: 4
+              },
+              pressFeedbackStyle(pressed, isSubmitting)
+            ]}
           >
             <Text style={{ color: "#FFFFFF", textAlign: "center", fontWeight: "700", fontSize: 16 }}>
               {isSubmitting ? "Creating..." : "Create Account"}

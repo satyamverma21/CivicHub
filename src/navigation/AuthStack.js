@@ -15,14 +15,14 @@ export default function AuthStack() {
     <Stack.Navigator
       initialRouteName="Login"
       screenOptions={{
-        headerStyle: { backgroundColor: colors.surface },
+        headerStyle: { backgroundColor: colors.surfaceElevated },
         headerTintColor: colors.text,
         headerTitleStyle: {
           color: colors.text,
           fontWeight: "700",
           fontSize: 17
         },
-        headerShadowVisible: false,
+        headerShadowVisible: true,
         headerBackTitleVisible: false,
         contentStyle: { backgroundColor: colors.background }
       }}

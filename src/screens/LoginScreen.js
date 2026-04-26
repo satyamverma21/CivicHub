@@ -3,6 +3,7 @@ import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, Vie
 import AuthInput from "../components/AuthInput";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
+import { pressFeedbackStyle } from "../styles";
 
 export default function LoginScreen({ navigation }) {
   const { login, showErrorToast } = useAuth();
@@ -66,7 +67,7 @@ export default function LoginScreen({ navigation }) {
         {/* Form Card */}
         <View style={{
           backgroundColor: colors.surface,
-          borderRadius: 20,
+          borderRadius: 12,
           padding: 24,
           borderWidth: colors.mode === "dark" ? 1 : 0,
           borderColor: colors.cardBorder,
@@ -89,13 +90,15 @@ export default function LoginScreen({ navigation }) {
           <Pressable
             onPress={handleLogin}
             disabled={isSubmitting}
-            style={{
-              backgroundColor: colors.primary,
-              borderRadius: 12,
-              paddingVertical: 15,
-              marginTop: 8,
-              opacity: isSubmitting ? 0.7 : 1
-            }}
+            style={({ pressed }) => [
+              {
+                backgroundColor: colors.primary,
+                borderRadius: 10,
+                paddingVertical: 15,
+                marginTop: 8
+              },
+              pressFeedbackStyle(pressed, isSubmitting)
+            ]}
           >
             <Text style={{ color: "#FFFFFF", textAlign: "center", fontWeight: "700", fontSize: 16 }}>
               {isSubmitting ? "Signing in..." : "Sign In"}
@@ -105,12 +108,12 @@ export default function LoginScreen({ navigation }) {
 
         {/* Footer links */}
         <View style={{ alignItems: "center", marginTop: 28, gap: 14 }}>
-          <Pressable onPress={() => navigation.navigate("HeadSignup")}>
+          <Pressable onPress={() => navigation.navigate("HeadSignup")} style={({ pressed }) => [pressFeedbackStyle(pressed)]}>
             <Text style={{ color: colors.primary, fontWeight: "600", fontSize: 15 }}>
               Create College Admin Account
             </Text>
           </Pressable>
-          <Pressable onPress={() => navigation.navigate("UserSignup")}>
+          <Pressable onPress={() => navigation.navigate("UserSignup")} style={({ pressed }) => [pressFeedbackStyle(pressed)]}>
             <Text style={{ color: colors.textSecondary, fontWeight: "500", fontSize: 14 }}>
               Join as User or Authority
             </Text>

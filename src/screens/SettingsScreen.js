@@ -3,12 +3,14 @@ import { Alert, Pressable, ScrollView, Text, View } from "react-native";
 import { Picker } from "@react-native-picker/picker";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
+import { pressFeedbackStyle } from "../styles";
 
 function ToggleRow({ label, description, value, onToggle, colors }) {
   return (
     <Pressable
       onPress={onToggle}
-      style={{
+      style={({ pressed }) => [
+        {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
@@ -16,7 +18,9 @@ function ToggleRow({ label, description, value, onToggle, colors }) {
         paddingHorizontal: 4,
         borderBottomWidth: 1,
         borderBottomColor: colors.borderLight
-      }}
+      },
+      pressFeedbackStyle(pressed)
+      ]}
     >
       <View style={{ flex: 1, marginRight: 12 }}>
         <Text style={{ fontWeight: "600", color: colors.text, fontSize: 15 }}>{label}</Text>
@@ -34,7 +38,7 @@ function ToggleRow({ label, description, value, onToggle, colors }) {
           width: 22,
           height: 22,
           borderRadius: 11,
-          backgroundColor: "#FFFFFF",
+          backgroundColor: colors.surfaceElevated,
           alignSelf: value ? "flex-end" : "flex-start"
         }} />
       </View>
@@ -120,10 +124,10 @@ export default function SettingsScreen() {
 
       {/* Privacy Section */}
       <SectionHeader title="Privacy" colors={colors} />
-      <View style={{
-        backgroundColor: colors.surface,
-        borderRadius: 16,
-        padding: 16,
+        <View style={{
+          backgroundColor: colors.surface,
+          borderRadius: 12,
+          padding: 16,
         borderWidth: colors.mode === "dark" ? 1 : 0,
         borderColor: colors.cardBorder,
         ...(shadows?.sm || {})
@@ -132,13 +136,15 @@ export default function SettingsScreen() {
         <ToggleRow label="Anonymous Posts" description="Hide your identity when posting" value={anonymousPosts} onToggle={() => setAnonymousPosts((prev) => !prev)} colors={colors} />
         <Pressable
           onPress={savePrivacy}
-          style={{
-            backgroundColor: colors.primary,
-            borderRadius: 10,
-            paddingVertical: 12,
-            marginTop: 14,
-            opacity: saving ? 0.6 : 1
-          }}
+          style={({ pressed }) => [
+            {
+              backgroundColor: colors.primary,
+              borderRadius: 10,
+              paddingVertical: 12,
+              marginTop: 14
+            },
+            pressFeedbackStyle(pressed, saving)
+          ]}
         >
           <Text style={{ textAlign: "center", color: "#FFFFFF", fontWeight: "700", fontSize: 14 }}>
             {saving ? "Saving..." : "Save Privacy Settings"}
@@ -148,10 +154,10 @@ export default function SettingsScreen() {
 
       {/* Notifications Section */}
       <SectionHeader title="Notifications" colors={colors} />
-      <View style={{
-        backgroundColor: colors.surface,
-        borderRadius: 16,
-        padding: 16,
+        <View style={{
+          backgroundColor: colors.surface,
+          borderRadius: 12,
+          padding: 16,
         borderWidth: colors.mode === "dark" ? 1 : 0,
         borderColor: colors.cardBorder,
         ...(shadows?.sm || {})
@@ -167,10 +173,10 @@ export default function SettingsScreen() {
 
       {/* Appearance Section */}
       <SectionHeader title="Appearance" colors={colors} />
-      <View style={{
-        backgroundColor: colors.surface,
-        borderRadius: 16,
-        padding: 16,
+        <View style={{
+          backgroundColor: colors.surface,
+          borderRadius: 12,
+          padding: 16,
         borderWidth: colors.mode === "dark" ? 1 : 0,
         borderColor: colors.cardBorder,
         ...(shadows?.sm || {})
@@ -185,15 +191,18 @@ export default function SettingsScreen() {
             <Pressable
               key={item.key}
               onPress={() => setThemePreference(item.key)}
-              style={{
-                flex: 1,
-                paddingVertical: 12,
-                borderRadius: 10,
-                backgroundColor: preference === item.key ? colors.primary : colors.surfaceAlt,
-                borderWidth: preference === item.key ? 0 : 1,
-                borderColor: colors.border,
-                alignItems: "center"
-              }}
+              style={({ pressed }) => [
+                {
+                  flex: 1,
+                  paddingVertical: 12,
+                  borderRadius: 10,
+                  backgroundColor: preference === item.key ? colors.primary : colors.surfaceAlt,
+                  borderWidth: preference === item.key ? 0 : 1,
+                  borderColor: colors.border,
+                  alignItems: "center"
+                },
+                pressFeedbackStyle(pressed)
+              ]}
             >
               <Text style={{
                 fontWeight: "600",
@@ -212,15 +221,18 @@ export default function SettingsScreen() {
       <View style={{ gap: 10 }}>
         <Pressable
           onPress={logout}
-          style={{
-            backgroundColor: colors.surface,
-            borderRadius: 14,
-            paddingVertical: 14,
-            alignItems: "center",
-            borderWidth: colors.mode === "dark" ? 1 : 0,
-            borderColor: colors.cardBorder,
-            ...(shadows?.sm || {})
-          }}
+          style={({ pressed }) => [
+            {
+              backgroundColor: colors.surface,
+              borderRadius: 10,
+              paddingVertical: 14,
+              alignItems: "center",
+              borderWidth: colors.mode === "dark" ? 1 : 0,
+              borderColor: colors.cardBorder,
+              ...(shadows?.sm || {})
+            },
+            pressFeedbackStyle(pressed)
+          ]}
         >
           <Text style={{ fontWeight: "700", color: colors.text, fontSize: 15 }}>Sign Out</Text>
         </Pressable>
@@ -230,13 +242,16 @@ export default function SettingsScreen() {
             { text: "Cancel", style: "cancel" },
             { text: "Delete", style: "destructive", onPress: () => deleteMyAccount().catch(showErrorToast) }
           ])}
-          style={{
-            borderWidth: 1.5,
-            borderColor: colors.danger,
-            borderRadius: 14,
-            paddingVertical: 14,
-            alignItems: "center"
-          }}
+          style={({ pressed }) => [
+            {
+              borderWidth: 1.5,
+              borderColor: colors.danger,
+              borderRadius: 10,
+              paddingVertical: 14,
+              alignItems: "center"
+            },
+            pressFeedbackStyle(pressed)
+          ]}
         >
           <Text style={{ fontWeight: "700", color: colors.danger, fontSize: 15 }}>Delete Account</Text>
         </Pressable>

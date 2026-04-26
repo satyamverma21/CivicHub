@@ -19,13 +19,13 @@ import { useTheme } from "../context/ThemeContext";
 const Stack = createNativeStackNavigator();
 
 export default function AppStack() {
-  const { colors, shadows } = useTheme();
+  const { colors } = useTheme();
 
   return (
     <Stack.Navigator
       screenOptions={{
         headerStyle: {
-          backgroundColor: colors.surface
+          backgroundColor: colors.surfaceElevated
         },
         headerTintColor: colors.text,
         headerTitleStyle: {
@@ -33,7 +33,7 @@ export default function AppStack() {
           fontWeight: "700",
           fontSize: 17
         },
-        headerShadowVisible: false,
+        headerShadowVisible: true,
         headerBackTitleVisible: false,
         contentStyle: { backgroundColor: colors.background }
       }}

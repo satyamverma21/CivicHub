@@ -5,6 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import AuthInput from "../components/AuthInput";
 import { formatTimestamp } from "../services/issues";
 import { useTheme } from "../context/ThemeContext";
+import { pressFeedbackStyle } from "../styles";
 
 export default function ProfileScreen({ navigation }) {
   const { currentUser, userRole, getMyProfileStats, updateMyProfile, showErrorToast } = useAuth();
@@ -70,7 +71,7 @@ export default function ProfileScreen({ navigation }) {
       {/* Profile Header */}
       <View style={{
         backgroundColor: colors.surface,
-        borderRadius: 20,
+        borderRadius: 12,
         padding: 24,
         alignItems: "center",
         borderWidth: colors.mode === "dark" ? 1 : 0,
@@ -111,7 +112,7 @@ export default function ProfileScreen({ navigation }) {
           <View key={stat.label} style={{
             flex: 1,
             backgroundColor: colors.surface,
-            borderRadius: 16,
+            borderRadius: 12,
             padding: 14,
             alignItems: "center",
             borderWidth: colors.mode === "dark" ? 1 : 0,
@@ -127,7 +128,7 @@ export default function ProfileScreen({ navigation }) {
       {/* Edit Form */}
       <View style={{
         backgroundColor: colors.surface,
-        borderRadius: 20,
+        borderRadius: 12,
         padding: 20,
         marginTop: 16,
         borderWidth: colors.mode === "dark" ? 1 : 0,
@@ -141,13 +142,15 @@ export default function ProfileScreen({ navigation }) {
 
         <Pressable
           onPress={onSave}
-          style={{
-            backgroundColor: colors.primary,
-            borderRadius: 12,
-            paddingVertical: 14,
-            marginTop: 4,
-            opacity: saving ? 0.6 : 1
-          }}
+          style={({ pressed }) => [
+            {
+              backgroundColor: colors.primary,
+              borderRadius: 10,
+              paddingVertical: 14,
+              marginTop: 4
+            },
+            pressFeedbackStyle(pressed, saving)
+          ]}
         >
           <Text style={{ color: "#FFFFFF", textAlign: "center", fontWeight: "700", fontSize: 16 }}>
             {saving ? "Saving..." : "Save Profile"}
@@ -163,15 +166,18 @@ export default function ProfileScreen({ navigation }) {
             <Pressable
               key={issue.id}
               onPress={() => navigation.navigate("IssueDetail", { issueId: issue.id })}
-              style={{
-                backgroundColor: colors.surface,
-                borderRadius: 14,
-                padding: 14,
-                marginBottom: 10,
-                borderWidth: colors.mode === "dark" ? 1 : 0,
-                borderColor: colors.cardBorder,
-                ...(shadows?.sm || {})
-              }}
+              style={({ pressed }) => [
+                {
+                  backgroundColor: colors.surface,
+                  borderRadius: 12,
+                  padding: 14,
+                  marginBottom: 10,
+                  borderWidth: colors.mode === "dark" ? 1 : 0,
+                  borderColor: colors.cardBorder,
+                  ...(shadows?.sm || {})
+                },
+                pressFeedbackStyle(pressed)
+              ]}
             >
               <Text style={{ fontWeight: "700", color: colors.text, fontSize: 15 }}>{issue.title}</Text>
               <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 6 }}>
@@ -199,7 +205,7 @@ export default function ProfileScreen({ navigation }) {
               key={comment.id}
               style={{
                 backgroundColor: colors.surface,
-                borderRadius: 14,
+                borderRadius: 12,
                 padding: 14,
                 marginBottom: 10,
                 borderWidth: colors.mode === "dark" ? 1 : 0,

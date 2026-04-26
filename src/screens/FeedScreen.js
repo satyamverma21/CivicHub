@@ -22,6 +22,7 @@ import {
 } from "../services/issues";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
+import { pressFeedbackStyle } from "../styles";
 
 function FeedSkeleton({ colors }) {
   return (
@@ -273,15 +274,18 @@ export default function FeedScreen({ navigation }) {
         <View style={{ flexDirection: "row", gap: 8 }}>
           <Pressable
             onPress={() => setShowFilters((prev) => !prev)}
-            style={{
-              flex: 1,
-              borderRadius: 12,
-              paddingVertical: 12,
-              backgroundColor: showFilters ? colors.primaryLight : colors.surface,
-              borderWidth: 1.5,
-              borderColor: showFilters ? colors.primary : colors.border,
-              alignItems: "center"
-            }}
+            style={({ pressed }) => [
+              {
+                flex: 1,
+                borderRadius: 10,
+                paddingVertical: 12,
+                backgroundColor: showFilters ? colors.primaryLight : colors.surface,
+                borderWidth: 1.5,
+                borderColor: showFilters ? colors.primary : colors.border,
+                alignItems: "center"
+              },
+              pressFeedbackStyle(pressed)
+            ]}
           >
             <Text style={{ fontWeight: "600", color: showFilters ? colors.primary : colors.text, fontSize: 14 }}>
               {showFilters ? "Hide Filters" : "Filter and Sort"}
@@ -289,13 +293,16 @@ export default function FeedScreen({ navigation }) {
           </Pressable>
           <Pressable
             onPress={() => navigation.navigate("CreateIssue")}
-            style={{
-              flex: 1,
-              backgroundColor: colors.primary,
-              borderRadius: 12,
-              paddingVertical: 12,
-              alignItems: "center"
-            }}
+            style={({ pressed }) => [
+              {
+                flex: 1,
+                backgroundColor: colors.primary,
+                borderRadius: 10,
+                paddingVertical: 12,
+                alignItems: "center"
+              },
+              pressFeedbackStyle(pressed)
+            ]}
           >
             <Text style={{ fontWeight: "700", color: "#FFFFFF", fontSize: 14 }}>+ File Complaint</Text>
           </Pressable>
@@ -361,7 +368,7 @@ export default function FeedScreen({ navigation }) {
 
           <Pressable
             onPress={saveFilters}
-            style={{ backgroundColor: colors.surfaceAlt, borderRadius: 10, paddingVertical: 11 }}
+            style={({ pressed }) => [{ backgroundColor: colors.surfaceAlt, borderRadius: 10, paddingVertical: 11 }, pressFeedbackStyle(pressed)]}
           >
             <Text style={{ textAlign: "center", fontWeight: "600", color: colors.primary, fontSize: 14 }}>Save Filters</Text>
           </Pressable>
@@ -397,13 +404,16 @@ export default function FeedScreen({ navigation }) {
               {!loadingMore && hasMore ? (
                 <Pressable
                   onPress={onLoadMore}
-                  style={{
-                    borderWidth: 1.5,
-                    borderColor: colors.border,
-                    borderRadius: 12,
-                    paddingVertical: 12,
-                    backgroundColor: colors.surface
-                  }}
+                  style={({ pressed }) => [
+                    {
+                      borderWidth: 1.5,
+                      borderColor: colors.border,
+                      borderRadius: 10,
+                      paddingVertical: 12,
+                      backgroundColor: colors.surface
+                    },
+                    pressFeedbackStyle(pressed)
+                  ]}
                 >
                   <Text style={{ textAlign: "center", fontWeight: "600", color: colors.primary, fontSize: 14 }}>Load More</Text>
                 </Pressable>

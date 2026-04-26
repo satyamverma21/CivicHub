@@ -3,6 +3,7 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } fro
 import AuthInput from "../components/AuthInput";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
+import { pressFeedbackStyle } from "../styles";
 
 export default function HeadSignupScreen() {
   const { signupHead, showErrorToast } = useAuth();
@@ -61,7 +62,7 @@ export default function HeadSignupScreen() {
 
         <View style={{
           backgroundColor: colors.surface,
-          borderRadius: 20,
+          borderRadius: 12,
           padding: 24,
           borderWidth: colors.mode === "dark" ? 1 : 0,
           borderColor: colors.cardBorder,
@@ -86,13 +87,15 @@ export default function HeadSignupScreen() {
           <Pressable
             onPress={handleSignup}
             disabled={isSubmitting}
-            style={{
-              backgroundColor: colors.accent,
-              borderRadius: 12,
-              paddingVertical: 15,
-              marginTop: 8,
-              opacity: isSubmitting ? 0.7 : 1
-            }}
+            style={({ pressed }) => [
+              {
+                backgroundColor: colors.accent,
+                borderRadius: 10,
+                paddingVertical: 15,
+                marginTop: 8
+              },
+              pressFeedbackStyle(pressed, isSubmitting)
+            ]}
           >
             <Text style={{ color: "#FFFFFF", textAlign: "center", fontWeight: "700", fontSize: 16 }}>
               {isSubmitting ? "Creating..." : "Create Organization"}

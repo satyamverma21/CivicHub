@@ -42,12 +42,16 @@ const makeShadow = (elevation, color = "#000") => {
   };
 };
 
-const shadows = {
-  sm: makeShadow(1),
-  md: makeShadow(2),
-  lg: makeShadow(3),
-  xl: makeShadow(4),
-  xxl: makeShadow(5)
+const buildShadows = (mode) => {
+  // Premium dark mode uses softer but deeper depth to separate layered surfaces.
+  const color = mode === "dark" ? "#020617" : "#000000";
+  return {
+    sm: makeShadow(1, color),
+    md: makeShadow(2, color),
+    lg: makeShadow(3, color),
+    xl: makeShadow(4, color),
+    xxl: makeShadow(5, color)
+  };
 };
 
 const palettes = {
@@ -113,62 +117,62 @@ const palettes = {
 
   dark: {
     mode: "dark",
-    // Backgrounds
-    background: "#210000",
-    surface: "#2E0606",
-    surfaceAlt: "#3A0B0B",
-    surfaceElevated: "#4A1111",
+    // Backgrounds (modern slate palette, no pure black)
+    background: "#020617",
+    surface: "#0B1220",
+    surfaceAlt: "#111827",
+    surfaceElevated: "#1A2333",
 
     // Text
-    text: "#FFF5F5",
-    textSecondary: "#F7CFCF",
-    textTertiary: "#D9A9A9",
-    textInverse: "#3A0606",
+    text: "#F8FAFC",
+    textSecondary: "#CBD5E1",
+    textTertiary: "#94A3B8",
+    textInverse: "#020617",
 
     // Borders
-    border: "#5C1C1C",
-    borderLight: "#461212",
-    borderFocus: "#FFB4B4",
+    border: "#273449",
+    borderLight: "#1E293B",
+    borderFocus: "#38BDF8",
 
-    // Primary (Dark Red)
-    primary: "#FF6B6B",
-    primaryDark: "#D94848",
-    primaryLight: "#5C1C1C",
-    primaryMuted: "#A84B4B",
+    // Primary
+    primary: "#38BDF8",
+    primaryDark: "#0EA5E9",
+    primaryLight: "#10263C",
+    primaryMuted: "#7DD3FC",
 
     // Accent / CTA
-    accent: "#C62828",
-    accentDark: "#A11212",
-    accentLight: "#5C1C1C",
+    accent: "#06B6D4",
+    accentDark: "#0891B2",
+    accentLight: "#0F2F3D",
 
     // Semantic
-    danger: "#FF7A7A",
+    danger: "#F87171",
     dangerDark: "#EF4444",
-    dangerLight: "#5C1C1C",
+    dangerLight: "#3B1620",
     success: "#4ADE80",
-    successLight: "#14532D",
+    successLight: "#123225",
     warning: "#FBBF24",
-    warningLight: "#451A00",
-    warningText: "#FBBF24",
+    warningLight: "#3A2A08",
+    warningText: "#FDE68A",
     info: "#60A5FA",
-    infoLight: "#1E3A5F",
+    infoLight: "#102A44",
 
     // Role specific
-    roleUser: { bg: "#5C1C1C", text: "#FFD6D6" },
-    roleAuthority: { bg: "#451A1A", text: "#FFB4B4" },
-    roleHead: { bg: "#14532D", text: "#4ADE80" },
-    roleSuperAdmin: { bg: "#5C1C1C", text: "#FFDCDC" },
+    roleUser: { bg: "#10263C", text: "#7DD3FC" },
+    roleAuthority: { bg: "#2A1C3D", text: "#C4B5FD" },
+    roleHead: { bg: "#123225", text: "#86EFAC" },
+    roleSuperAdmin: { bg: "#3A2A08", text: "#FCD34D" },
 
     // Status
-    statusOpen: { bg: "#5C1C1C", text: "#FFD6D6" },
-    statusInProgress: { bg: "#6E2222", text: "#FFE3E3" },
-    statusResolved: { bg: "#14532D", text: "#4ADE80" },
-    statusClosed: { bg: "#120000", text: "#F7CFCF" },
+    statusOpen: { bg: "#1F2937", text: "#E2E8F0" },
+    statusInProgress: { bg: "#10263C", text: "#7DD3FC" },
+    statusResolved: { bg: "#123225", text: "#86EFAC" },
+    statusClosed: { bg: "#2C3342", text: "#CBD5E1" },
 
     // Misc
-    skeleton: "#5C1C1C",
-    overlay: "rgba(0, 0, 0, 0.65)",
-    cardBorder: "#5C1C1C"
+    skeleton: "#1F2937",
+    overlay: "rgba(2, 6, 23, 0.78)",
+    cardBorder: "#273449"
   }
 };
 
@@ -211,7 +215,7 @@ export function ThemeProvider({ children }) {
       isDark: resolvedMode === "dark",
       spacing,
       radius,
-      shadows
+      shadows: buildShadows(resolvedMode)
     }),
     [colors, preference, resolvedMode]
   );

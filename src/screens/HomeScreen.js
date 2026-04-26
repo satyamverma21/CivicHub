@@ -4,20 +4,24 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../context/AuthContext";
 import { apiGet } from "../services/api";
 import { useTheme } from "../context/ThemeContext";
+import { pressFeedbackStyle } from "../styles";
 
 function QuickAction({ title, subtitle, onPress, colors, shadows, accentColor }) {
   return (
     <Pressable
       onPress={onPress}
-      style={{
-        flex: 1,
-        backgroundColor: colors.surface,
-        borderRadius: 16,
-        padding: 16,
-        borderWidth: colors.mode === "dark" ? 1 : 0,
-        borderColor: colors.cardBorder,
-        ...(shadows?.md || {})
-      }}
+      style={({ pressed }) => [
+        {
+          flex: 1,
+          backgroundColor: colors.surface,
+          borderRadius: 12,
+          padding: 16,
+          borderWidth: colors.mode === "dark" ? 1 : 0,
+          borderColor: colors.cardBorder,
+          ...(shadows?.md || {})
+        },
+        pressFeedbackStyle(pressed)
+      ]}
     >
       <View style={{
         width: 40,
@@ -160,14 +164,17 @@ export default function HomeScreen({ navigation }) {
               <>
                 <Pressable
                   onPress={() => navigation.navigate("AuthorityPersonalizedFeed")}
-                  style={{
-                    backgroundColor: colors.surface,
-                    borderRadius: 16,
-                    padding: 16,
-                    borderWidth: colors.mode === "dark" ? 1 : 0,
-                    borderColor: colors.cardBorder,
-                    ...(shadows?.sm || {})
-                  }}
+                  style={({ pressed }) => [
+                    {
+                      backgroundColor: colors.surface,
+                      borderRadius: 12,
+                      padding: 16,
+                      borderWidth: colors.mode === "dark" ? 1 : 0,
+                      borderColor: colors.cardBorder,
+                      ...(shadows?.sm || {})
+                    },
+                    pressFeedbackStyle(pressed)
+                  ]}
                 >
                   <Text style={{ fontWeight: "700", color: colors.text, fontSize: 15 }}>Personalized Feed</Text>
                   <Text style={{ color: colors.textTertiary, fontSize: 13 }}>Assigned + department-tagged complaints</Text>
@@ -177,14 +184,17 @@ export default function HomeScreen({ navigation }) {
 
             <Pressable
               onPress={() => navigation.navigate("AuthorityDashboard")}
-              style={{
-                backgroundColor: colors.surface,
-                borderRadius: 16,
-                padding: 16,
-                borderWidth: colors.mode === "dark" ? 1 : 0,
-                borderColor: colors.cardBorder,
-                ...(shadows?.sm || {})
-              }}
+              style={({ pressed }) => [
+                {
+                  backgroundColor: colors.surface,
+                  borderRadius: 12,
+                  padding: 16,
+                  borderWidth: colors.mode === "dark" ? 1 : 0,
+                  borderColor: colors.cardBorder,
+                  ...(shadows?.sm || {})
+                },
+                pressFeedbackStyle(pressed)
+              ]}
             >
               <Text style={{ fontWeight: "700", color: colors.text, fontSize: 15 }}>Authority Dashboard</Text>
               <Text style={{ color: colors.textTertiary, fontSize: 13 }}>Manage assigned complaints</Text>
@@ -193,14 +203,17 @@ export default function HomeScreen({ navigation }) {
             {userRole === "Head" ? (
               <Pressable
                 onPress={() => navigation.navigate("HeadDashboard")}
-                style={{
-                  backgroundColor: colors.surface,
-                  borderRadius: 16,
-                  padding: 16,
-                  borderWidth: colors.mode === "dark" ? 1 : 0,
-                  borderColor: colors.cardBorder,
-                  ...(shadows?.sm || {})
-                }}
+                style={({ pressed }) => [
+                  {
+                    backgroundColor: colors.surface,
+                    borderRadius: 12,
+                    padding: 16,
+                    borderWidth: colors.mode === "dark" ? 1 : 0,
+                    borderColor: colors.cardBorder,
+                    ...(shadows?.sm || {})
+                  },
+                  pressFeedbackStyle(pressed)
+                ]}
               >
                 <Text style={{ fontWeight: "700", color: colors.text, fontSize: 15 }}>Head Dashboard</Text>
                 <Text style={{ color: colors.textTertiary, fontSize: 13 }}>Approve authorities and monitor resolution</Text>
@@ -210,14 +223,17 @@ export default function HomeScreen({ navigation }) {
             {["Head", "SuperAdmin"].includes(userRole || "") ? (
               <Pressable
                 onPress={() => navigation.navigate("AuthorityTagManager")}
-                style={{
-                  backgroundColor: colors.surface,
-                  borderRadius: 16,
-                  padding: 16,
-                  borderWidth: colors.mode === "dark" ? 1 : 0,
-                  borderColor: colors.cardBorder,
-                  ...(shadows?.sm || {})
-                }}
+                style={({ pressed }) => [
+                  {
+                    backgroundColor: colors.surface,
+                    borderRadius: 12,
+                    padding: 16,
+                    borderWidth: colors.mode === "dark" ? 1 : 0,
+                    borderColor: colors.cardBorder,
+                    ...(shadows?.sm || {})
+                  },
+                  pressFeedbackStyle(pressed)
+                ]}
               >
                 <Text style={{ fontWeight: "700", color: colors.text, fontSize: 15 }}>Authority Department Tags</Text>
                 <Text style={{ color: colors.textTertiary, fontSize: 13 }}>Assign one or more department tags per authority</Text>
@@ -227,14 +243,17 @@ export default function HomeScreen({ navigation }) {
             {userRole === "SuperAdmin" ? (
               <Pressable
                 onPress={() => navigation.navigate("SuperAdminDashboard")}
-                style={{
-                  backgroundColor: colors.surface,
-                  borderRadius: 16,
-                  padding: 16,
-                  borderWidth: colors.mode === "dark" ? 1 : 0,
-                  borderColor: colors.cardBorder,
-                  ...(shadows?.sm || {})
-                }}
+                style={({ pressed }) => [
+                  {
+                    backgroundColor: colors.surface,
+                    borderRadius: 12,
+                    padding: 16,
+                    borderWidth: colors.mode === "dark" ? 1 : 0,
+                    borderColor: colors.cardBorder,
+                    ...(shadows?.sm || {})
+                  },
+                  pressFeedbackStyle(pressed)
+                ]}
               >
                 <Text style={{ fontWeight: "700", color: colors.text, fontSize: 15 }}>Super Admin Panel</Text>
                 <Text style={{ color: colors.textTertiary, fontSize: 13 }}>System-wide college governance</Text>
@@ -248,14 +267,17 @@ export default function HomeScreen({ navigation }) {
         {userRole === "User" ? (
           <Pressable
             onPress={() => navigation.navigate("MyIssues")}
-            style={{
-              backgroundColor: colors.surface,
-              borderRadius: 16,
-              padding: 16,
-              borderWidth: colors.mode === "dark" ? 1 : 0,
-              borderColor: colors.cardBorder,
-              ...(shadows?.sm || {})
-            }}
+            style={({ pressed }) => [
+              {
+                backgroundColor: colors.surface,
+                borderRadius: 12,
+                padding: 16,
+                borderWidth: colors.mode === "dark" ? 1 : 0,
+                borderColor: colors.cardBorder,
+                ...(shadows?.sm || {})
+              },
+              pressFeedbackStyle(pressed)
+            ]}
           >
             <Text style={{ fontWeight: "700", color: colors.text, fontSize: 15 }}>My Issues</Text>
             <Text style={{ color: colors.textTertiary, fontSize: 13 }}>View your complaints by status</Text>
@@ -264,14 +286,17 @@ export default function HomeScreen({ navigation }) {
 
         <Pressable
           onPress={() => navigation.navigate("Profile")}
-          style={{
-            backgroundColor: colors.surface,
-            borderRadius: 16,
-            padding: 16,
-            borderWidth: colors.mode === "dark" ? 1 : 0,
-            borderColor: colors.cardBorder,
-            ...(shadows?.sm || {})
-          }}
+          style={({ pressed }) => [
+            {
+              backgroundColor: colors.surface,
+              borderRadius: 12,
+              padding: 16,
+              borderWidth: colors.mode === "dark" ? 1 : 0,
+              borderColor: colors.cardBorder,
+              ...(shadows?.sm || {})
+            },
+            pressFeedbackStyle(pressed)
+          ]}
         >
           <Text style={{ fontWeight: "700", color: colors.text, fontSize: 15 }}>Profile</Text>
           <Text style={{ color: colors.textTertiary, fontSize: 13 }}>{currentUser?.email || ""}</Text>
@@ -279,21 +304,24 @@ export default function HomeScreen({ navigation }) {
 
         <Pressable
           onPress={() => navigation.navigate("Settings")}
-          style={{
-            backgroundColor: colors.surface,
-            borderRadius: 16,
-            padding: 16,
-            borderWidth: colors.mode === "dark" ? 1 : 0,
-            borderColor: colors.cardBorder,
-            ...(shadows?.sm || {})
-          }}
+          style={({ pressed }) => [
+            {
+              backgroundColor: colors.surface,
+              borderRadius: 12,
+              padding: 16,
+              borderWidth: colors.mode === "dark" ? 1 : 0,
+              borderColor: colors.cardBorder,
+              ...(shadows?.sm || {})
+            },
+            pressFeedbackStyle(pressed)
+          ]}
         >
           <Text style={{ fontWeight: "700", color: colors.text, fontSize: 15 }}>Settings</Text>
         </Pressable>
 
         <Pressable
           onPress={logout}
-          style={{ paddingVertical: 16, alignItems: "center", marginTop: 8 }}
+          style={({ pressed }) => [{ paddingVertical: 16, alignItems: "center", marginTop: 8 }, pressFeedbackStyle(pressed)]}
         >
           <Text style={{ color: colors.textTertiary, fontWeight: "600", fontSize: 14 }}>Sign Out</Text>
         </Pressable>

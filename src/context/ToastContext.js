@@ -1,15 +1,11 @@
 import React, { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
 import { Text, View } from "react-native";
+import { useTheme } from "./ThemeContext";
 
 const ToastContext = createContext(null);
 
-const TOAST_COLORS = {
-  info: { bg: "#1F2937", text: "#FFFFFF" },
-  success: { bg: "#065F46", text: "#ECFDF5" },
-  error: { bg: "#7F1D1D", text: "#FEF2F2" }
-};
-
 export function ToastProvider({ children }) {
+  const { colors, shadows } = useTheme();
   const timerRef = useRef(null);
   const [toast, setToast] = useState({ visible: false, message: "", type: "info" });
 
@@ -27,7 +23,8 @@ export function ToastProvider({ children }) {
     if (timerRef.current) {
       clearTimeout(timerRef.current);
     }
-    setToast({ visible: true, message: safeMessage, type: TOAST_COLORS[type] ? type : "info" });
+    const typeSafe = ["info", "success", "error"].includes(type) ? type : "info";
+    setToast({ visible: true, message: safeMessage, type: typeSafe });
     timerRef.current = setTimeout(() => {
       setToast((prev) => ({ ...prev, visible: false }));
       timerRef.current = null;
@@ -50,14 +47,32 @@ export function ToastProvider({ children }) {
     hideToast
   }), [showToast, showErrorToast, showSuccessToast, hideToast]);
 
-  const palette = TOAST_COLORS[toast.type] || TOAST_COLORS.info;
+  const palette = useMemo(() => {
+    if (toast.type === "success") {
+      return { bg: colors.successLight, text: colors.success, border: colors.success };
+    }
+    if (toast.type === "error") {
+      return { bg: colors.dangerLight, text: colors.danger, border: colors.danger };
+    }
+    return { bg: colors.surfaceElevated, text: colors.text, border: colors.border };
+  }, [colors, toast.type]);
 
   return (
     <ToastContext.Provider value={value}>
       {children}
       {toast.visible ? (
         <View pointerEvents="none" style={{ position: "absolute", top: 56, left: 16, right: 16, zIndex: 9999 }}>
-          <View style={{ backgroundColor: palette.bg, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12 }}>
+          <View
+            style={{
+              backgroundColor: palette.bg,
+              borderRadius: 10,
+              borderWidth: 1,
+              borderColor: palette.border,
+              paddingHorizontal: 14,
+              paddingVertical: 12,
+              ...(shadows?.lg || {})
+            }}
+          >
             <Text style={{ color: palette.text, fontSize: 13, fontWeight: "600" }}>{toast.message}</Text>
           </View>
         </View>

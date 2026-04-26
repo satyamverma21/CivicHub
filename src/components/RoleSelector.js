@@ -1,6 +1,7 @@
 import React from "react";
 import { Pressable, Text, View } from "react-native";
 import { useTheme } from "../context/ThemeContext";
+import { pressFeedbackStyle } from "../styles";
 
 export default function RoleSelector({ selectedRole, onSelectRole, options }) {
   const { colors } = useTheme();
@@ -13,14 +14,17 @@ export default function RoleSelector({ selectedRole, onSelectRole, options }) {
           <Pressable
             key={role}
             onPress={() => onSelectRole(role)}
-            style={{
-              borderWidth: selected ? 0 : 1.5,
-              borderColor: colors.border,
-              backgroundColor: selected ? colors.primary : colors.surface,
-              paddingVertical: 10,
-              paddingHorizontal: 20,
-              borderRadius: 999
-            }}
+            style={({ pressed }) => [
+              {
+                borderWidth: selected ? 0 : 1.5,
+                borderColor: colors.border,
+                backgroundColor: selected ? colors.primary : colors.surfaceElevated,
+                paddingVertical: 10,
+                paddingHorizontal: 20,
+                borderRadius: 999
+              },
+              pressFeedbackStyle(pressed)
+            ]}
           >
             <Text style={{
               color: selected ? "#FFFFFF" : colors.text,

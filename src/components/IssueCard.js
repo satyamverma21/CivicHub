@@ -5,6 +5,7 @@ import ImageCarousel from "./ImageCarousel";
 import StatusBadge from "./StatusBadge";
 import { formatTimestamp } from "../services/issues";
 import { useTheme } from "../context/ThemeContext";
+import { pressFeedbackStyle } from "../styles";
 
 function initials(name) {
   const parts = (name || "U").split(" ").filter(Boolean);
@@ -49,15 +50,18 @@ export default function IssueCard({ issue, onPress, onLikePress, currentUserId, 
   return (
     <Pressable
       onPress={onPress}
-      style={{
-        backgroundColor: colors.surface,
-        borderRadius: 16,
-        padding: 16,
-        marginBottom: 14,
-        borderWidth: colors.mode === "dark" ? 1 : 0,
-        borderColor: colors.cardBorder,
-        ...(shadows?.md || {})
-      }}
+      style={({ pressed }) => [
+        {
+          backgroundColor: colors.surface,
+          borderRadius: 12,
+          padding: 16,
+          marginBottom: 14,
+          borderWidth: colors.mode === "dark" ? 1 : 0,
+          borderColor: colors.cardBorder,
+          ...(shadows?.md || {})
+        },
+        pressFeedbackStyle(pressed)
+      ]}
     >
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1 }}>
@@ -131,7 +135,12 @@ export default function IssueCard({ issue, onPress, onLikePress, currentUserId, 
         justifyContent: "space-between",
         alignItems: "center"
       }}>
-        <Pressable onPress={onLikePress} accessibilityLabel="Like complaint" hitSlop={8} style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+        <Pressable
+          onPress={onLikePress}
+          accessibilityLabel="Like complaint"
+          hitSlop={8}
+          style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", gap: 6 }, pressFeedbackStyle(pressed)]}
+        >
           <Animated.View style={{ transform: [{ scale: likeScale }] }}>
             <Text style={{ color: liked ? colors.danger : colors.textSecondary, fontWeight: "700", fontSize: 13 }}>
               {liked ? "Liked" : "Like"}
@@ -149,7 +158,7 @@ export default function IssueCard({ issue, onPress, onLikePress, currentUserId, 
           </Text>
         </View>
 
-        <Pressable onPress={onSharePress} style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+        <Pressable onPress={onSharePress} style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", gap: 4 }, pressFeedbackStyle(pressed)]}>
           <Text style={{ color: colors.primary, fontWeight: "600", fontSize: 14 }}>Share</Text>
         </Pressable>
       </View>

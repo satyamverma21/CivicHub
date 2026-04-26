@@ -8,7 +8,7 @@ import { Platform } from "react-native";
 export function cardStyle(colors, shadows) {
   return {
     backgroundColor: colors.surface,
-    borderRadius: 16,
+    borderRadius: 12,
     padding: 16,
     borderWidth: colors.mode === "dark" ? 1 : 0,
     borderColor: colors.cardBorder,
@@ -19,7 +19,7 @@ export function cardStyle(colors, shadows) {
 export function cardAltStyle(colors, shadows) {
   return {
     backgroundColor: colors.surfaceAlt,
-    borderRadius: 16,
+    borderRadius: 12,
     padding: 16,
     borderWidth: colors.mode === "dark" ? 1 : 0,
     borderColor: colors.border,
@@ -29,10 +29,10 @@ export function cardAltStyle(colors, shadows) {
 
 export function inputStyle(colors) {
   return {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceElevated,
     borderWidth: 1.5,
     borderColor: colors.border,
-    borderRadius: 12,
+    borderRadius: 10,
     paddingHorizontal: 16,
     paddingVertical: Platform.OS === "ios" ? 14 : 12,
     fontSize: 16,
@@ -52,11 +52,12 @@ export function inputFocusStyle(colors) {
 export function buttonPrimary(colors) {
   return {
     backgroundColor: colors.primary,
-    borderRadius: 12,
+    borderRadius: 10,
     paddingVertical: 14,
     paddingHorizontal: 24,
     alignItems: "center",
-    justifyContent: "center"
+    justifyContent: "center",
+    minHeight: 48
   };
 }
 
@@ -71,11 +72,12 @@ export function buttonPrimaryText() {
 export function buttonAccent(colors) {
   return {
     backgroundColor: colors.accent,
-    borderRadius: 12,
+    borderRadius: 10,
     paddingVertical: 14,
     paddingHorizontal: 24,
     alignItems: "center",
-    justifyContent: "center"
+    justifyContent: "center",
+    minHeight: 48
   };
 }
 
@@ -84,11 +86,12 @@ export function buttonOutline(colors) {
     backgroundColor: "transparent",
     borderWidth: 1.5,
     borderColor: colors.primary,
-    borderRadius: 12,
+    borderRadius: 10,
     paddingVertical: 13,
     paddingHorizontal: 24,
     alignItems: "center",
-    justifyContent: "center"
+    justifyContent: "center",
+    minHeight: 48
   };
 }
 
@@ -105,11 +108,20 @@ export function buttonDanger(colors) {
     backgroundColor: "transparent",
     borderWidth: 1.5,
     borderColor: colors.danger,
-    borderRadius: 12,
+    borderRadius: 10,
     paddingVertical: 13,
     paddingHorizontal: 24,
     alignItems: "center",
-    justifyContent: "center"
+    justifyContent: "center",
+    minHeight: 48
+  };
+}
+
+// Shared touch feedback for Pressable controls.
+export function pressFeedbackStyle(pressed, disabled = false) {
+  return {
+    opacity: disabled ? 0.6 : pressed ? 0.88 : 1,
+    transform: [{ scale: pressed && !disabled ? 0.985 : 1 }]
   };
 }
 

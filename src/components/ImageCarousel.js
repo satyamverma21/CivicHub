@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Dimensions, Image, Modal, Pressable, ScrollView, Text, View } from "react-native";
 import { absoluteUploadUrl } from "../services/issues";
 import { useTheme } from "../context/ThemeContext";
+import { pressFeedbackStyle } from "../styles";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
@@ -86,7 +87,7 @@ export default function ImageCarousel({
                 event?.stopPropagation?.();
                 openViewer(item.index);
               }}
-              style={{ width: "100%", height: "100%" }}
+              style={({ pressed }) => [{ width: "100%", height: "100%" }, pressFeedbackStyle(pressed)]}
             >
               <Image
                 source={{ uri: item.uri }}
@@ -140,12 +141,12 @@ export default function ImageCarousel({
         transparent
         onRequestClose={() => setViewerVisible(false)}
       >
-        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.95)" }}>
+        <View style={{ flex: 1, backgroundColor: colors.overlay }}>
           <View style={{ paddingTop: 44, paddingHorizontal: 16, paddingBottom: 8, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
             <Text style={{ color: "#FFFFFF", fontSize: 14, fontWeight: "700" }}>
               {viewerIndex + 1} / {displayEntries.length}
             </Text>
-            <Pressable onPress={() => setViewerVisible(false)} hitSlop={10}>
+            <Pressable onPress={() => setViewerVisible(false)} hitSlop={10} style={({ pressed }) => [pressFeedbackStyle(pressed)]}>
               <Text style={{ color: "#FFFFFF", fontSize: 22, fontWeight: "700" }}>×</Text>
             </Pressable>
           </View>
